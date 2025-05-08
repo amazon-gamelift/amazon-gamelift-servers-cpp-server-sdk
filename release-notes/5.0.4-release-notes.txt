@@ -1,0 +1,6 @@
+- Increases websocket open handshake timeout from 5 seconds to 20 seconds. This update reduces the likelihood of
+  failures to establish a websocket connection due to high network latency, which results in occasional errors in
+  InitSDK().
+- Explicitly initializes the WebSocketPlayerSessionCreationPolicy enum to NOT_SET. This update resolves cases where
+  some c++ compilers don’t default an enum instance to the enum's first value.
+- Updates README.md file to provide complete prerequisites and add a “Common Issues” section.
