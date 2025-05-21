@@ -1,0 +1,1 @@
+- Update README to include ARM64 build options

@@ -1,0 +1,14 @@
+- Add support for GameLift Anywhere. This SDK version contains backwards-incompatible changes.
+- Update InitSDK() API to take a ServerParameters parameter.
+- Remove InitSDKWithExisting(GameLiftServerState*) API
+- Remove ProcessReadyAsync(ProcessParameters&) API
+- Remove TerminateGameSession() API
+- Rename GetInstanceCertificate() API to GetComputeCertificate()
+- Add GetFleetRoleCredentials(GetFleetRoleCredentialsRequest&) API
+- Remove dependency on Boost
+- Remove dependency on Protobuf
+- Remove dependency on Socket.io Client
+- Add dependency on Rapidjson 1.1.0
+- Add dependency on Asio 1.20.0
+- Add dependency on Websocketpp 0.8.2
+- Add SDK unit tests using dependency GoogleTest 1.12.1
