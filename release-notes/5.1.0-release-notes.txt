@@ -1,0 +1,5 @@
+- Add InitSDK() API with no parameters. This API reads server parameters from environment variables, such as fleet ID,
+  compute name, WebSocket URL, process ID and auth token. This API simplifies SDK initialization in Amazon GameLift managed EC2 fleets.
+  For initialization in Amazon GameLift Anywhere fleets, call InitSDK() with the ServerParameters parameter.
+- Provide better error messaging for APIs.
+- Remove usage of "std::" in InitSDK() API when -DGAMELIFT_USE_STD is disabled

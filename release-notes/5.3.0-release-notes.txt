@@ -1,0 +1,7 @@
+- Adds or improves client-side validation in all server SDK actions.
+- Adds more specific and improved error responses to API errors.
+- Fixes an edge case in GetFleetRoleCredentials() that causes game server crash.
+- Adds default logic to the onProcessTerminate() callback that terminates the game server process when this callback is invoked.
+- Adds idempotency token support to allow InitSDK() retries to succeed.
+- Includes autoBackfillMode in the data passed in the OnUpdateGameSession() callback.
+- Adds native support to MSVC, GCC and CLANG compilers (without CMAKE) to support Unreal Engine build tools.
