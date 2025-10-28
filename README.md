@@ -20,7 +20,7 @@ You can find the official Amazon GameLift Servers documentation [here](https://d
 1. Install the full version of OpenSSL from https://wiki.openssl.org/index.php/Binaries for the appropriate platform.
 2. Follow the installation instructions provided by OpenSSL.
 3. Once installed, navigate to the OpenSSL folder (for example: C:\Program Files\OpenSSL-Win64). **COPY** the following
-   two DLLs and save them to a safe location for later use (such as your desktop).  
+   two DLLs and save them to a safe location for later use (such as your desktop).
    **These two DLLs must be included in your game server build when you upload it to Amazon GameLift Servers.**
     * libssl-3-x64.dll
     * libcrypto-3-x64.dll
@@ -89,7 +89,7 @@ To build the server SDK, follow these instructions for your operating system:
    ```
 4. Compile the solution for release.
    ```
-   cmake.exe --build ./cmake-build --target ALL_BUILD
+   cmake.exe --build ./cmake-build --config Release --target ALL_BUILD
    ```
 5. Find the compiled binaries in **prefix\bin**
 
@@ -111,8 +111,8 @@ This SDK is known to work with these CMake generators and architectures:
 
 ### BUILD_FOR_UNREAL
 
-Optional variable to build the SDK for use with Unreal Engine. When enabled, all dependencies are built statically and 
-then rolled into a single shared object library. 
+Optional variable to build the SDK for use with Unreal Engine. When enabled, all dependencies are built statically and
+then rolled into a single shared object library.
 
 #### Available options
 * `0` **(Default)**: Disable build for unreal
@@ -138,7 +138,7 @@ Optional variable to select static linking or dynamic linking.
 
 ### GAMELIFT_USE_STD
 
-Optional variable to select whether using the C++ standard library in the build. 
+Optional variable to select whether using the C++ standard library in the build.
 
 Whether the C++ standard library should be used is generally a matter of preference, but there are some
 considerations.
@@ -149,7 +149,7 @@ considerations.
   accepted as a parameter in this case. When using libraries built with `-DGAMELIFT_USE_STD=1` in your application, it is
   important that you continue to define the `GAMELIFT_USE_STD=1` preprocessor definition prior to including the headers:
   ```
-  #define GAMELIFT_USE_STD=1  
+  #define GAMELIFT_USE_STD=1
   #include "aws\gamelift\server\GameLiftServerAPI.h"
   ```
   Otherwise, the prototype in the built library will not match the prototype in the header that you are including, and you
@@ -162,7 +162,7 @@ considerations.
   Likewise, if the libraries are built with `-DGAMELIFT_USE_STD=0`, then the following is acceptable though not required:
   ```
   #define GAMELIFT_USE_STD=0
-  #include "aws\gamelift\server\GameLiftServerAPI.h" GAMELIFT_USE_STD 
+  #include "aws\gamelift\server\GameLiftServerAPI.h" GAMELIFT_USE_STD
   ```
 
 #### Available options
@@ -180,7 +180,7 @@ Option to specify the build type.
 
 #### Available options
 
-* `Release` **(Default)**: Set build type to release. This option should be used in most cases. 
+* `Release` **(Default)**: Set build type to release. This option should be used in most cases.
 * `Debug`: Set build type to debug. This option will generate PDB file to help debugging.
 
 #### Example
@@ -190,7 +190,7 @@ Option to specify the build type.
 
 ### RUN_CLANG_FORMAT
 
-Option to automatically run clang-format as part of the build process over all SDK and test source code, and 
+Option to automatically run clang-format as part of the build process over all SDK and test source code, and
 automatically correct any styling inconsistencies. Note that this will add significant amount of build time.
 
 #### Available options
@@ -214,6 +214,12 @@ Option to run unit tests as part of the build process.
 ```
 -DRUN_UNIT_TESTS=0
 ```
+
+## Metrics
+
+This SDK enables the feature to collect and ship telemetry metrics from your game servers hosted on Amazon GameLift Servers to
+AWS services for monitoring and observability. For detailed setup and usage instructions, see [METRICS.md](./telemetry-metrics/METRICS.md).
+
 
 ## Common Issues
 
@@ -239,3 +245,15 @@ LogWindows: Missing import: libcrypto-3-x64.dll
   these DLLs included.
   * For Unreal Engine, the version of OpenSSL should match the version used by Unreal to package your game server.
     The version can be identified under the Unreal installation directory `Engine\Source\ThirdParty\OpenSSL`.
+
+### Conflicts with min/max macros on Windows
+
+* **Cause**: When building an application that uses the metrics feature of this SDK on Windows, you make see errors during the build referencing `ReduceMetric.h` like this:
+
+  ```text
+  error C2589: '(' : illegal token on right side of '::'
+  ```
+
+  This can be caused by a conflict between C++ standard library min/max macros and those defined by Windows headers.
+
+* **Mitigation**: Ensure you set the `NOMINMAX` definition in your application code *before* including any windows headers. Alternatively, you can set this at compile time with CMake via `-DNOMINMAX`.

@@ -15,6 +15,7 @@
 #include <aws/gamelift/internal/network/GameLiftWebSocketClientManager.h>
 #include <aws/gamelift/internal/network/IGameLiftMessageHandler.h>
 #include <aws/gamelift/internal/network/IWebSocketClientWrapper.h>
+#include <aws/gamelift/metrics/IMetricsProcessor.h>
 #include <aws/gamelift/internal/network/callback/CreateGameSessionCallback.h>
 #include <aws/gamelift/internal/network/callback/DescribePlayerSessionsCallback.h>
 #include <aws/gamelift/internal/network/callback/GetComputeCertificateCallback.h>
@@ -207,12 +208,15 @@ private:
 public:
     GetFleetRoleCredentialsOutcome GetFleetRoleCredentials(const Aws::GameLift::Server::Model::GetFleetRoleCredentialsRequest &request);
 
+    void SetGlobalProcessor(Aws::GameLift::Metrics::IMetricsProcessor* processor);
+
     // When within 15 minutes of expiration we retrieve new instance role credentials
     static constexpr const time_t INSTANCE_ROLE_CREDENTIAL_TTL_MIN = 60 * 15;
 
 private:
     bool AssertNetworkInitialized();
     void SetUpCallbacks();
+    static void DetectGameLiftTools();
 
     bool m_processReady;
 
@@ -247,6 +251,9 @@ private:
     std::condition_variable m_healthCheckConditionVariable;
     std::mutex m_healthCheckMutex;
     bool m_healthCheckInterrupted;
+
+    // GlobalProcessor reference for metrics
+    Aws::GameLift::Metrics::IMetricsProcessor* m_globalProcessor;
 };
 
 } // namespace Internal

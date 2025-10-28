@@ -33,12 +33,14 @@ file(GLOB AWS_GAMELIFT_COMMON_TEST  "" "${GAMELIFT_TEST_ROOT}/source/aws/gamelif
 file(GLOB AWS_GAMELIFT_SERVER_TEST  "" "${GAMELIFT_TEST_ROOT}/source/aws/gamelift/server/*.cpp")
 file(GLOB_RECURSE AWS_GAMELIFT_INTERNAL_TEST  "" "${GAMELIFT_TEST_ROOT}/source/aws/gamelift/internal/*.cpp")
 file(GLOB AWS_GAMELIFT_MODEL_TEST  "" "${GAMELIFT_TEST_ROOT}/source/aws/gamelift/server/model/*.cpp")
+file(GLOB AWS_GAMELIFT_METRICS_TEST "" "${GAMELIFT_TEST_ROOT}/source/aws/gamelift/metrics/*.cpp")
 file(GLOB AWS_GAMELIFT_UTILITY  "" "${GAMELIFT_TEST_ROOT}/include/aws/gamelift/utility/*.h")
 set(GAMELIFT_TEST_SRC
         ${AWS_GAMELIFT_COMMON_TEST}
         ${AWS_GAMELIFT_SERVER_TEST}
         ${AWS_GAMELIFT_INTERNAL_TEST}
         ${AWS_GAMELIFT_MODEL_TEST}
+        ${AWS_GAMELIFT_METRICS_TEST}
         ${AWS_GAMELIFT_UTILITY}
 )
 add_executable(
