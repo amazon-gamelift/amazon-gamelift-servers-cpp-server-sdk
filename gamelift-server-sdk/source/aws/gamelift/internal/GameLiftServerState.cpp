@@ -10,10 +10,12 @@
  *
  */
 #include <aws/gamelift/internal/GameLiftServerState.h>
+#include <aws/gamelift/metrics/GlobalMetricsProcessor.h>
 #include <aws/gamelift/server/ProcessParameters.h>
 #include <aws/gamelift/server/model/DescribePlayerSessionsResult.h>
 #include <aws/gamelift/server/model/GetFleetRoleCredentialsRequest.h>
 #include <aws/gamelift/server/model/PlayerSessionCreationPolicy.h>
+#include <aws/gamelift/common/MetricsDetector.h>
 #include <iostream>
 
 #include <aws/gamelift/internal/model/request/AcceptPlayerSessionRequest.h>
@@ -61,7 +63,8 @@ Aws::GameLift::Internal::GameLiftServerState::GameLiftServerState()
       m_createGameSessionCallback(new CreateGameSessionCallback(this)), m_describePlayerSessionsCallback(new DescribePlayerSessionsCallback()),
       m_getComputeCertificateCallback(new GetComputeCertificateCallback()), m_getFleetRoleCredentialsCallback(new GetFleetRoleCredentialsCallback()),
       m_terminateProcessCallback(new TerminateProcessCallback(this)), m_updateGameSessionCallback(new UpdateGameSessionCallback(this)),
-      m_startMatchBackfillCallback(new StartMatchBackfillCallback()), m_refreshConnectionCallback(new RefreshConnectionCallback(this)) {}
+      m_startMatchBackfillCallback(new StartMatchBackfillCallback()), m_refreshConnectionCallback(new RefreshConnectionCallback(this)),
+      m_globalProcessor(nullptr) {}
 
 Aws::GameLift::Internal::GameLiftServerState::~GameLiftServerState() {
     m_processReady = false;
@@ -108,6 +111,8 @@ GenericOutcome Aws::GameLift::Internal::GameLiftServerState::ProcessReady(const 
     if (AssertNetworkInitialized()) {
         return GenericOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::GAMELIFT_SERVER_NOT_INITIALIZED));
     }
+
+    DetectGameLiftTools();
 
     const char* sdkToolNameEnvironmentVariable = std::getenv(ENV_VAR_SDK_TOOL_NAME);
     const char* sdkToolVersionEnvironmentVariable = std::getenv(ENV_VAR_SDK_TOOL_VERSION);
@@ -284,6 +289,12 @@ void Aws::GameLift::Internal::GameLiftServerState::OnStartGameSession(Aws::GameL
 
     m_gameSessionId = gameSessionId;
 
+    // Call metrics OnGameSessionStarted
+    if (!gameSessionId.empty() && m_globalProcessor != nullptr) {
+        Aws::GameLift::Metrics::OnGameSessionStarted(gameSession);
+        spdlog::info("Tagged metrics with game session: {}", gameSessionId);
+    }
+
     // Invoking OnStartGameSession callback if specified by the developer.
     if (m_onStartGameSession) {
         std::thread activateGameSession(std::bind(m_onStartGameSession, gameSession));
@@ -357,7 +368,8 @@ Aws::GameLift::Internal::GameLiftServerState::GameLiftServerState()
       m_createGameSessionCallback(new CreateGameSessionCallback(this)), m_describePlayerSessionsCallback(new DescribePlayerSessionsCallback()),
       m_getComputeCertificateCallback(new GetComputeCertificateCallback()), m_getFleetRoleCredentialsCallback(new GetFleetRoleCredentialsCallback()),
       m_terminateProcessCallback(new TerminateProcessCallback(this)), m_updateGameSessionCallback(new UpdateGameSessionCallback(this)),
-      m_startMatchBackfillCallback(new StartMatchBackfillCallback()), m_refreshConnectionCallback(new RefreshConnectionCallback(this)) {}
+      m_startMatchBackfillCallback(new StartMatchBackfillCallback()), m_refreshConnectionCallback(new RefreshConnectionCallback(this)),
+      m_globalProcessor(nullptr) {}
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
@@ -415,6 +427,8 @@ GenericOutcome Aws::GameLift::Internal::GameLiftServerState::ProcessReady(const 
     if (AssertNetworkInitialized()) {
         return GenericOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::GAMELIFT_SERVER_NOT_INITIALIZED));
     }
+
+    DetectGameLiftTools();
 
     const char* sdkToolNameEnvironmentVariable = std::getenv(ENV_VAR_SDK_TOOL_NAME);
     const char* sdkToolVersionEnvironmentVariable = std::getenv(ENV_VAR_SDK_TOOL_VERSION);
@@ -591,6 +605,12 @@ void Aws::GameLift::Internal::GameLiftServerState::OnStartGameSession(Aws::GameL
     }
 
     m_gameSessionId = gameSessionId;
+
+    // Call metrics OnGameSessionStarted
+    if (!gameSessionId.empty() && m_globalProcessor != nullptr) {
+        Aws::GameLift::Metrics::OnGameSessionStarted(gameSession);
+        spdlog::info("Tagged metrics with game session: {}", gameSessionId);
+    }
 
     // Invoking OnStartGameSession callback if specified by the developer.
     if (m_onStartGameSession) {
@@ -1153,6 +1173,15 @@ int Aws::GameLift::Internal::GameLiftServerState::GetNextHealthCheckIntervalMill
     // MAX_JITTER_SECONDS]
     int jitter = std::rand() % (HEALTHCHECK_MAX_JITTER_MILLIS * 2 + 1) - HEALTHCHECK_MAX_JITTER_MILLIS;
     return HEALTHCHECK_INTERVAL_MILLIS + jitter;
+}
+
+void Aws::GameLift::Internal::GameLiftServerState::DetectGameLiftTools() {
+    Aws::GameLift::Common::MetricsDetector metricsDetector;
+    metricsDetector.SetGameLiftTool();
+}
+
+void Aws::GameLift::Internal::GameLiftServerState::SetGlobalProcessor(Aws::GameLift::Metrics::IMetricsProcessor* processor) {
+    m_globalProcessor = processor;
 }
 
 #if defined(__GNUC__) || defined(__clang__)
