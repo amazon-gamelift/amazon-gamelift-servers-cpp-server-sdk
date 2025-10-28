@@ -2,8 +2,6 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.1)
 
 PROJECT(aws-cpp-sdk-gamelift-server)
 SET(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_STANDARD_REQUIRED ON)
-SET(CMAKE_CXX_EXTENSIONS OFF)
 SET(TARGET_NAME aws-cpp-sdk-gamelift-server)
 
 if(MSVC)
@@ -15,10 +13,6 @@ endif()
 # always be dynamically linked. All other libraries used by the SDK may be statically linked, depending on the flags
 # BUILD_FOR_UNREAL and BUILD_SHARED_LIBS.
 find_package(OpenSSL REQUIRED)
-
-if(NOT OPENSSL_FOUND)
-    message(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or set OPENSSL_ROOT_DIR environment variable to point to OpenSSL installation directory.")
-endif()
 
 if(BUILD_FOR_UNREAL)
    set(BUILD_SHARED_LIBS ON)
@@ -51,8 +45,6 @@ file(GLOB AWS_GAMELIFT_COMMON_SOURCE  "" "${GAMELIFT_SOURCE_ROOT}/source/aws/gam
 file(GLOB AWS_GAMELIFT_SERVER_HEADERS "" "${GAMELIFT_SOURCE_ROOT}/include/aws/gamelift/server/*.h*")
 file(GLOB AWS_GAMELIFT_SERVER_SOURCE  "" "${GAMELIFT_SOURCE_ROOT}/source/aws/gamelift/server/*.cpp")
 file(GLOB AWS_GAMELIFT_MODEL_HEADERS "" "${GAMELIFT_SOURCE_ROOT}/include/aws/gamelift/server/model/*.h*")
-file(GLOB AWS_GAMELIFT_METRICS_HEADERS "" "${GAMELIFT_SOURCE_ROOT}/include/aws/gamelift/metrics/*.h*")
-file(GLOB AWS_GAMELIFT_METRICS_SOURCE  "" "${GAMELIFT_SOURCE_ROOT}/source/aws/gamelift/metrics/*.cpp")
 file(GLOB_RECURSE AWS_GAMELIFT_INTERNAL_HEADERS "" "${GAMELIFT_SOURCE_ROOT}/include/aws/gamelift/internal/*.h")
 file(GLOB_RECURSE AWS_GAMELIFT_INTERNAL_SOURCE "" "${GAMELIFT_SOURCE_ROOT}/source/aws/gamelift/internal/*.cpp")
 set(GAMELIFT_SERVER_SRC
@@ -61,10 +53,8 @@ set(GAMELIFT_SERVER_SRC
     ${AWS_GAMELIFT_COMMON_HEADERS}
     ${AWS_GAMELIFT_MODEL_HEADERS}
     ${AWS_GAMELIFT_SERVER_HEADERS}
-    ${AWS_GAMELIFT_METRICS_HEADERS}
     ${AWS_GAMELIFT_COMMON_SOURCE}
     ${AWS_GAMELIFT_SERVER_SOURCE}
-    ${AWS_GAMELIFT_METRICS_SOURCE}
 )
 
 add_library(${TARGET_NAME} ${GAMELIFT_SERVER_SRC})
@@ -137,11 +127,9 @@ if(MSVC)
     source_group("Header Files\\aws\\gamelift\\internal" FILES ${AWS_GAMELIFT_INTERNAL_HEADERS})
     source_group("Header Files\\aws\\gamelift\\internal\\network" FILES ${AWS_GAMELIFT_INTERNAL_NETWORK_HEADERS})
     source_group("Header Files\\aws\\gamelift\\server\\model" FILES ${AWS_GAMELIFT_MODEL_HEADERS})
-    source_group("Header Files\\aws\\gamelift\\metrics" FILES ${AWS_GAMELIFT_METRICS_HEADERS})
     source_group("Source Files\\common" FILES ${AWS_GAMELIFT_COMMON_SOURCE})
     source_group("Source Files\\internal" FILES ${AWS_GAMELIFT_INTERNAL_SOURCE})
     source_group("Source Files\\server" FILES ${AWS_GAMELIFT_SERVER_SOURCE})
-    source_group("Source Files\\metrics" FILES ${AWS_GAMELIFT_METRICS_SOURCE})
     add_definitions("/Zi")
     # Make the Release version create a PDB
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")

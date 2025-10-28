@@ -14,17 +14,13 @@
 #include <aws/gamelift/internal/network/IWebSocketClientWrapper.h>
 #include <aws/gamelift/internal/network/WebSocketppClientWrapper.h>
 #include <aws/gamelift/server/ProcessParameters.h>
-#include <aws/gamelift/server/MetricsParameters.h>
-#include <aws/gamelift/metrics/GlobalMetricsProcessor.h>
-#include <aws/gamelift/metrics/MetricsSettings.h>
-#include <aws/gamelift/metrics/MetricsUtils.h>
 
 #include <aws/gamelift/internal/util/LoggerHelper.h>
 #include <spdlog/spdlog.h>
 
 using namespace Aws::GameLift;
 
-static const std::string sdkVersion = "5.4.0";
+static const std::string sdkVersion = "5.3.0";
 
 #ifdef GAMELIFT_USE_STD
 Aws::GameLift::AwsStringOutcome Server::GetSdkVersion() { return AwsStringOutcome(sdkVersion); }
@@ -48,12 +44,6 @@ Server::InitSDKOutcome Server::InitSDK(const Aws::GameLift::Server::Model::Serve
             return InitSDKOutcome(networkingOutcome.GetError());
         }
         spdlog::info("Networking outcome success. Init SDK success");
-
-        // Set global processor if available
-        Aws::GameLift::Metrics::IMetricsProcessor* globalProcessor = GameLiftMetricsGlobalProcessor();
-        if (globalProcessor != nullptr) {
-            initOutcome.GetResult()->SetGlobalProcessor(globalProcessor);
-        }
     }
     return initOutcome;
 }
@@ -205,12 +195,6 @@ GenericOutcome Server::InitSDK(const Aws::GameLift::Server::Model::ServerParamet
             return GenericOutcome(networkingOutcome.GetError());
         }
         spdlog::info("Networking outcome success. Init SDK success");
-
-        // Set global processor if available
-        Aws::GameLift::Metrics::IMetricsProcessor* globalProcessor = GameLiftMetricsGlobalProcessor();
-        if (globalProcessor != nullptr) {
-            initOutcome.GetResult()->SetGlobalProcessor(globalProcessor);
-        }
     }
     return GenericOutcome(nullptr);
 }
@@ -360,11 +344,7 @@ DescribePlayerSessionsOutcome Server::DescribePlayerSessions(const Aws::GameLift
     return serverState->DescribePlayerSessions(describePlayerSessionsRequest);
 }
 
-GenericOutcome Server::Destroy() {
-    Aws::GameLift::Metrics::MetricsTerminate();
-    spdlog::info("Metrics terminated");
-    return Internal::GameLiftCommonState::DestroyInstance(); 
-}
+GenericOutcome Server::Destroy() { return Internal::GameLiftCommonState::DestroyInstance(); }
 
 GetComputeCertificateOutcome Server::GetComputeCertificate() {
     Internal::GetInstanceOutcome giOutcome = Internal::GameLiftCommonState::GetInstance(Internal::GAMELIFT_INTERNAL_STATE_TYPE::SERVER);
@@ -394,50 +374,4 @@ GetFleetRoleCredentialsOutcome Server::GetFleetRoleCredentials(const Aws::GameLi
     }
 
     return GetFleetRoleCredentialsOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::NOT_INITIALIZED));
-}
-
-GenericOutcome Server::InitMetrics() {
-    return InitMetrics(Aws::GameLift::Metrics::CreateMetricsParametersFromEnvironmentOrDefault());
-}
-
-GenericOutcome Server::InitMetrics(const Aws::GameLift::Server::MetricsParameters &metricsParameters) {
-    // Validate parameters
-    GenericOutcome validationOutcome = Aws::GameLift::Metrics::ValidateMetricsParameters(metricsParameters);
-    if (!validationOutcome.IsSuccess()) {
-        return validationOutcome;
-    }
-
-    // Map MetricsParameters to MetricsSettings
-    Aws::GameLift::Metrics::MetricsSettings settings = Aws::GameLift::Metrics::FromMetricsParameters(metricsParameters);
-    Aws::GameLift::Metrics::MetricsInitialize(settings);
-
-    // Now that metrics are initialized, set the global processor in the server state
-    Internal::GetInstanceOutcome giOutcome = Internal::GameLiftCommonState::GetInstance(Internal::GAMELIFT_INTERNAL_STATE_TYPE::SERVER);
-    if (giOutcome.IsSuccess()) {
-        auto *serverState = dynamic_cast<Internal::GameLiftServerState *>(giOutcome.GetResult());
-        if (serverState != nullptr) {
-            Aws::GameLift::Metrics::IMetricsProcessor* globalProcessor = GameLiftMetricsGlobalProcessor();
-            if (globalProcessor != nullptr) {
-                serverState->SetGlobalProcessor(globalProcessor);
-            }
-            // Check if there's an active game session
-#ifdef GAMELIFT_USE_STD
-            std::string gameSessionId = serverState->GetGameSessionId();
-            if (!gameSessionId.empty()) {
-                Aws::GameLift::Server::Model::GameSession gameSession;
-                gameSession.SetGameSessionId(gameSessionId);
-                Aws::GameLift::Metrics::OnGameSessionStarted(gameSession);
-            }
-#else
-            const char* gameSessionId = serverState->GetGameSessionId();
-            if (gameSessionId != nullptr && gameSessionId[0] != '\0') {
-                Aws::GameLift::Server::Model::GameSession gameSession;
-                gameSession.SetGameSessionId(gameSessionId);
-                Aws::GameLift::Metrics::OnGameSessionStarted(gameSession);
-            }
-#endif
-        }
-    }
-
-    return GenericOutcome(nullptr);
 }

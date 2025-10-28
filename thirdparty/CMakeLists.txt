@@ -10,9 +10,6 @@ include(External_websocketpp)
 # spdlog is a header-only library, so no need to look for system version
 include(External_spdlog)
 
-# concurrentqueue is a header-only library, so no need to look for system version
-include(External_concurrentqueue)
-
 # clang-format used to format our source code
 if (RUN_CLANG_FORMAT)
     include(External_clang-format)

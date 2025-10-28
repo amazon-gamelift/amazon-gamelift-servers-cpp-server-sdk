@@ -152,23 +152,18 @@ std::tuple<std::string, int, std::string> HttpClient::GetHostAndPortAndPath(cons
 
     if (portPos != std::string::npos && (pathPos == std::string::npos || portPos < pathPos)) {
         host = url.substr(hostStart, portPos - hostStart);
-        std::size_t portEnd = (pathPos == std::string::npos) ? url.size() : pathPos;
-        port = std::stoi(url.substr(portPos + 1, portEnd - portPos - 1));
+        port = std::stoi(
+                url.substr(portPos + 1, (pathPos == std::string::npos ? url.size() : pathPos) - portPos - 1));
     } else {
         if (pathPos == std::string::npos) {
             host = url.substr(hostStart);
             path = "/";
         } else {
             host = url.substr(hostStart, pathPos - hostStart);
-        }
-    }
-    if (path.empty()) {
-        if (pathPos != std::string::npos) {
             path = url.substr(pathPos);
-        } else {
-            path = "/";
         }
     }
+
     return std::make_tuple(host, port, path);
 }
 

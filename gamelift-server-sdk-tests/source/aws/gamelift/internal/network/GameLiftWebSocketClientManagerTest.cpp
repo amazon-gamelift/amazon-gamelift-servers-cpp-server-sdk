@@ -19,7 +19,7 @@ namespace GameLift {
 namespace Internal {
 namespace Test {
 
-static const std::string sdkVersion = "5.4.0";
+static const std::string sdkVersion = "5.3.0";
 // private constants copied over for testing purposes
 static constexpr const char *PID_KEY = "pID";
 static constexpr const char *SDK_VERSION_KEY = "sdkVersion";

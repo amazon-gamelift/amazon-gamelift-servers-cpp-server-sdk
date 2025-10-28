@@ -35,7 +35,6 @@ private:
 
 public:
     HttpClient() {};
-    virtual ~HttpClient() = default;
 
     /**
      * Sends an HTTP GET request to the specified URL.

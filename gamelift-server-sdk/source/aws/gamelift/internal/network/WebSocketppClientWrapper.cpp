@@ -235,7 +235,8 @@ GenericOutcome WebSocketppClientWrapper::SendSocketMessage(const std::string &re
             spdlog::warn("WebSocket is not connected... WebSocket failed to send message due to an error.");
             return GenericOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::WEBSOCKET_SEND_MESSAGE_FAILURE));
         }
-        spdlog::warn("WebSocket is not connected... isConnected: {}", IsConnected());
+        spdlog::warn("WebSocket is not connected... isConnected: {}, remoteEndpoint: {}, host: {}, port: {}",
+                IsConnected(), m_connection->get_remote_endpoint(), m_connection->get_host(), m_connection->get_port());
         std::this_thread::sleep_for(std::chrono::seconds(WAIT_FOR_RECONNECT_RETRY_DELAY_SECONDS));
     }
 
@@ -269,7 +270,8 @@ GenericOutcome WebSocketppClientWrapper::SendSocketMessage(const std::string &re
     if (promiseStatus == std::future_status::timeout) {
         std::lock_guard<std::mutex> lock(m_requestToPromiseLock);
         spdlog::error("Response not received within the time limit of {} ms for request {}", SERVICE_CALL_TIMEOUT_MILLIS, requestId);
-        spdlog::warn("isConnected: {}", IsConnected());
+        spdlog::warn("isConnected: {}, remoteEndpoint: {}, host: {}, port: {}", IsConnected(),
+                     m_connection->get_remote_endpoint(), m_connection->get_host(), m_connection->get_port());
         m_requestIdToPromise.erase(requestId);
         // If a call times out, retry
         return GenericOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::WEBSOCKET_RETRIABLE_SEND_MESSAGE_FAILURE));
@@ -279,12 +281,8 @@ GenericOutcome WebSocketppClientWrapper::SendSocketMessage(const std::string &re
 }
 
 GenericOutcome WebSocketppClientWrapper::SendSocketMessageAsync(const std::string &message) {
-    if (!m_connection) {
-        spdlog::error("Cannot send message: m_connection is null");
-        return GenericOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::WEBSOCKET_SEND_MESSAGE_FAILURE));
-    }
-
-    spdlog::info("Sending Socket Message, isConnected:{}", IsConnected());
+    spdlog::info("Sending Socket Message, isConnected:{}, endpoint: {}, host: {}, port: {}", IsConnected(),
+                 m_connection->get_remote_endpoint(), m_connection->get_host(), m_connection->get_port());
     websocketpp::lib::error_code errorCode;
     m_webSocketClient->send(m_connection->get_handle(), message.c_str(), websocketpp::frame::opcode::text, errorCode);
     if (errorCode.value()) {
@@ -352,7 +350,8 @@ void WebSocketppClientWrapper::OnError(websocketpp::connection_hdl connection) {
 
 void WebSocketppClientWrapper::OnMessage(websocketpp::connection_hdl connection, websocketpp::config::asio_client::message_type::ptr msg) {
     std::string message = msg->get_payload();
-    spdlog::info("Received message from websocket endpoint");
+    spdlog::info("Received message from websocket endpoint: {}, host: {}, port: {}",
+                 m_connection->get_remote_endpoint(), m_connection->get_host(), m_connection->get_port());
 
     ResponseMessage responseMessage;
     Message &gameLiftMessage = responseMessage;
