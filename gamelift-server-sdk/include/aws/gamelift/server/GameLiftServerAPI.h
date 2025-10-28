@@ -16,6 +16,7 @@
 #include <aws/gamelift/common/Outcome.h>
 
 #include <aws/gamelift/server/ProcessParameters.h>
+#include <aws/gamelift/server/MetricsParameters.h>
 #include <aws/gamelift/server/model/DescribePlayerSessionsRequest.h>
 #include <aws/gamelift/server/model/GetFleetRoleCredentialsRequest.h>
 #include <aws/gamelift/server/model/ServerParameters.h>
@@ -56,6 +57,29 @@ Should be called when the server starts with the given server parameters, before
 @return Pointer to the internal server state indicating that the server process is ready to call ProcessReady().
 */
 AWS_GAMELIFT_API InitSDKOutcome InitSDK(const Aws::GameLift::Server::Model::ServerParameters &serverParameters);
+
+/**
+Initializes the metrics system with default configuration parameters.
+For best results, it's recommended to call this method before InitSDK() to enable metrics collection.
+Uses default values, overridden by environment variables if available.
+Defaults: localhost:8125 for StatsD, localhost:8126 for crash reporter
+FlushInterval: 10000ms, MaxPacketSize: 512 bytes
+Override with environment variables: GAMELIFT_STATSD_HOST, GAMELIFT_STATSD_PORT, etc.
+@return GenericOutcome indicating success or failure.
+*/
+AWS_GAMELIFT_API GenericOutcome InitMetrics();
+
+/**
+Initializes the metrics system with the specified configuration parameters.
+For best results, it's recommended to call this method before InitSDK() to enable metrics collection.
+Uses the provided parameters exactly as specified. To use environment variables or defaults, call InitMetrics() instead.
+@param metricsParameters A MetricsParameters object containing configuration for metrics collection:
+- StatsD server host and port for metrics reporting
+- Crash reporter host and port for crash tracking  
+- Metrics maximum packet size and flush interval settings
+@return GenericOutcome indicating success or failure.
+*/
+AWS_GAMELIFT_API GenericOutcome InitMetrics(const Aws::GameLift::Server::MetricsParameters &metricsParameters);
 
 /**
 Signals Amazon GameLift Servers that the process is ready to receive GameSessions.
@@ -161,6 +185,29 @@ Should be called when the server starts with the given server parameters, before
 @return Pointer to the internal server state indicating that the server process is ready to call ProcessReady().
 */
 AWS_GAMELIFT_API GenericOutcome InitSDK(const Aws::GameLift::Server::Model::ServerParameters &serverParameters);
+
+/**
+Initializes the metrics system with default configuration parameters.
+For best results, it's recommended to call this method before InitSDK() to enable metrics collection.
+Uses default values, overridden by environment variables if available.
+Defaults: localhost:8125 for StatsD, localhost:8126 for crash reporter
+FlushInterval: 10000ms, MaxPacketSize: 512 bytes
+Override with environment variables: GAMELIFT_STATSD_HOST, GAMELIFT_STATSD_PORT, etc.
+@return GenericOutcome indicating success or failure.
+*/
+AWS_GAMELIFT_API GenericOutcome InitMetrics();
+
+/**
+Initializes the metrics system with the specified configuration parameters.
+For best results, it's recommended to call this method before InitSDK() to enable metrics collection.
+Uses the provided parameters exactly as specified. To use environment variables or defaults, call InitMetrics() instead.
+@param metricsParameters A MetricsParameters object containing configuration for metrics collection:
+- StatsD server host and port for metrics reporting
+- Crash reporter host and port for crash tracking  
+- Metrics maximum packet size and flush interval settings
+@return GenericOutcome indicating success or failure.
+*/
+AWS_GAMELIFT_API GenericOutcome InitMetrics(const Aws::GameLift::Server::MetricsParameters &metricsParameters);
 
 /**
 Signals Amazon GameLift Servers that the process is ready to receive GameSessions.

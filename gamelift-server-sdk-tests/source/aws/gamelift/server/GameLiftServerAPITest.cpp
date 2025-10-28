@@ -20,7 +20,7 @@ namespace GameLift {
 namespace Server {
 namespace Test {
 
-static const std::string sdkVersion = "5.3.0";
+static const std::string sdkVersion = "5.4.0";
 
 TEST(GameLiftServerAPITest, GIVEN_SdkVersion_WHEN_GetSdkVersion_THEN_success) {
     // GIVEN
