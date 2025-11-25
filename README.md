@@ -220,6 +220,7 @@ Option to run unit tests as part of the build process.
 This SDK enables the feature to collect and ship telemetry metrics from your game servers hosted on Amazon GameLift Servers to
 AWS services for monitoring and observability. For detailed setup and usage instructions, see [METRICS.md](./telemetry-metrics/METRICS.md).
 
+![Telemetry Metrics on Amazon Grafana Dashboard](./telemetry-metrics/telemetry_metrics.png)
 
 ## Common Issues
 
