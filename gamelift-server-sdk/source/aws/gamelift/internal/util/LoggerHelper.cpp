@@ -18,6 +18,10 @@ using namespace Aws::GameLift::Internal;
 
 #ifdef GAMELIFT_USE_STD
 void LoggerHelper::InitializeLogger(const std::string& process_Id) {
+    if (spdlog::get("multi_sink")) {
+        return;
+    }
+
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     std::string serverSdkLog = "logs/gamelift-server-sdk-";
     serverSdkLog.append(process_Id).append(".log");
@@ -34,6 +38,10 @@ void LoggerHelper::InitializeLogger(const std::string& process_Id) {
 }
 #else
 void LoggerHelper::InitializeLogger(const char* process_Id) {
+    if (spdlog::get("multi_sink")) {
+        return;
+    }
+
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     std::string serverSdkLog = "logs/gamelift-server-sdk-";
     serverSdkLog.append(process_Id).append(".log");
