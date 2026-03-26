@@ -16,37 +16,38 @@
 
 using namespace Aws::GameLift::Internal;
 
-#ifdef GAMELIFT_USE_STD
-void LoggerHelper::InitializeLogger(const std::string& process_Id) {
+namespace {
+
+constexpr const char *LOG_PATTERN_CONSOLE = "%^[%Y-%m-%d %H:%M:%S] [%l] [%t] %v%$";
+constexpr const char *LOG_PATTERN_FILE = "[%Y-%m-%d %H:%M:%S] [%l] [%t] %v";
+constexpr size_t MAX_LOG_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+constexpr size_t MAX_LOG_FILES = 5;
+
+void ConfigureLogger(const std::string &processId) {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     std::string serverSdkLog = "logs/gamelift-server-sdk-";
-    serverSdkLog.append(process_Id).append(".log");
-    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(serverSdkLog, 10485760, 5);
+    serverSdkLog.append(processId).append(".log");
+    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(serverSdkLog, MAX_LOG_FILE_SIZE, MAX_LOG_FILES);
 
-    console_sink->set_pattern("%^[%Y-%m-%d %H:%M:%S] [%l] %v%$");
-    file_sink->set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
+    console_sink->set_pattern(LOG_PATTERN_CONSOLE);
+    file_sink->set_pattern(LOG_PATTERN_FILE);
 
-    spdlog::logger logger("multi_sink", { console_sink, file_sink });
-    logger.set_level(spdlog::level::info);
-    logger.flush_on(spdlog::level::info);
+    auto logger = std::make_shared<spdlog::logger>("multi_sink", spdlog::sinks_init_list{console_sink, file_sink});
+    logger->set_level(spdlog::level::info);
+    logger->flush_on(spdlog::level::info);
 
-    spdlog::set_default_logger(std::make_shared<spdlog::logger>(logger));
+    spdlog::set_default_logger(logger);
+}
+
+} // anonymous namespace
+
+#ifdef GAMELIFT_USE_STD
+void LoggerHelper::InitializeLogger(const std::string &process_Id) {
+    ConfigureLogger(process_Id);
 }
 #else
-void LoggerHelper::InitializeLogger(const char* process_Id) {
-    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    std::string serverSdkLog = "logs/gamelift-server-sdk-";
-    serverSdkLog.append(process_Id).append(".log");
-    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(serverSdkLog, 10485760, 5);
-
-    console_sink->set_pattern("%^[%Y-%m-%d %H:%M:%S] [%l] %v%$");
-    file_sink->set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
-
-    spdlog::logger logger("multi_sink", { console_sink, file_sink });
-    logger.set_level(spdlog::level::info);
-    logger.flush_on(spdlog::level::info);
-
-    spdlog::set_default_logger(std::make_shared<spdlog::logger>(logger));
+void LoggerHelper::InitializeLogger(const char *process_Id) {
+    ConfigureLogger(process_Id ? process_Id : "unknown");
 }
 #endif
 
