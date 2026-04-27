@@ -38,7 +38,7 @@ public:
     Message(Message &&) = default;
     Message &operator=(const Message &) = default;
     Message &operator=(Message &&) = default;
-    ~Message() = default;
+    virtual ~Message() = default;
 
     inline const std::string &GetAction() const { return m_action; }
 

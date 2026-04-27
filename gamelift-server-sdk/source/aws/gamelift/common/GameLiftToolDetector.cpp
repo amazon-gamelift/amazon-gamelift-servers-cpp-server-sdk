@@ -11,6 +11,7 @@
  */
 
 #include <aws/gamelift/common/GameLiftToolDetector.h>
+#include <aws/gamelift/internal/util/EnvironmentUtils.h>
 #include <cstdlib>
 #include <cstring>
 
@@ -25,14 +26,12 @@ void GameLiftToolDetector::SetGameLiftTool() {
     if (!IsToolRunning()) {
         return;
     }
-    const char* existingToolName = std::getenv(ENV_VAR_SDK_TOOL_NAME);
-    const char* existingToolVersion = std::getenv(ENV_VAR_SDK_TOOL_VERSION);
+    std::string existingToolNameStr = Internal::Utils::SafeGetenv(ENV_VAR_SDK_TOOL_NAME);
+    std::string existingToolVersionStr = Internal::Utils::SafeGetenv(ENV_VAR_SDK_TOOL_VERSION);
     std::string toolName = GetToolName();
     std::string toolVersion = GetToolVersion();
 
-    if (existingToolName != nullptr && strlen(existingToolName) > 0) {
-        std::string existingToolNameStr(existingToolName);
-        std::string existingToolVersionStr(existingToolVersion != nullptr ? existingToolVersion : "");
+    if (!existingToolNameStr.empty()) {
         if (existingToolNameStr.find(toolName) == std::string::npos) {
             toolName = existingToolNameStr + "," + toolName;
             toolVersion = existingToolVersionStr + "," + toolVersion;
