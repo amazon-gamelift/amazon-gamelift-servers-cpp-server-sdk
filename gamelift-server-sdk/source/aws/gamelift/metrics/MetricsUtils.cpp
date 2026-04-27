@@ -14,6 +14,7 @@
 #include <aws/gamelift/metrics/GlobalMetricsProcessor.h>
 #include <aws/gamelift/metrics/MetricsSettings.h>
 #include <aws/gamelift/common/GameLiftErrors.h>
+#include <aws/gamelift/internal/util/EnvironmentUtils.h>
 #include <cstdlib>
 #include <cstring>
 #include <spdlog/spdlog.h>
@@ -26,54 +27,56 @@ namespace Metrics {
 
 MetricsParameters CreateMetricsParametersFromEnvironmentOrDefault() {
     // Start with default values
-    const char* statsdHost = DEFAULT_STATSD_HOST;
+    std::string statsdHost = DEFAULT_STATSD_HOST;
     int statsdPort = DEFAULT_STATSD_PORT;
-    const char* crashReporterHost = DEFAULT_CRASH_REPORTER_HOST;
+    std::string crashReporterHost = DEFAULT_CRASH_REPORTER_HOST;
     int crashReporterPort = DEFAULT_CRASH_REPORTER_PORT;
     int flushIntervalMs = DEFAULT_FLUSH_INTERVAL_MS;
     int maxPacketSize = DEFAULT_MAX_PACKET_SIZE;
 
     // Check environment variables and override defaults
-    const char* envStatsdHost = std::getenv(ENV_VAR_STATSD_HOST);
-    if (envStatsdHost && envStatsdHost[0] != '\0') {
+    using Aws::GameLift::Internal::Utils::SafeGetenv;
+
+    std::string envStatsdHost = SafeGetenv(ENV_VAR_STATSD_HOST);
+    if (!envStatsdHost.empty()) {
         statsdHost = envStatsdHost;
         spdlog::info("Env override for statsdHost: {}", statsdHost);
     }
 
-    const char* envStatsdPort = std::getenv(ENV_VAR_STATSD_PORT);
-    if (envStatsdPort && envStatsdPort[0] != '\0') {
-        statsdPort = std::atoi(envStatsdPort);
+    std::string envStatsdPort = SafeGetenv(ENV_VAR_STATSD_PORT);
+    if (!envStatsdPort.empty()) {
+        statsdPort = std::atoi(envStatsdPort.c_str());
         spdlog::info("Env override for statsdPort: {}", statsdPort);
     }
 
-    const char* envCrashReporterHost = std::getenv(ENV_VAR_CRASH_REPORTER_HOST);
-    if (envCrashReporterHost && envCrashReporterHost[0] != '\0') {
+    std::string envCrashReporterHost = SafeGetenv(ENV_VAR_CRASH_REPORTER_HOST);
+    if (!envCrashReporterHost.empty()) {
         crashReporterHost = envCrashReporterHost;
         spdlog::info("Env override for crashReporterHost: {}", crashReporterHost);
     }
 
-    const char* envCrashReporterPort = std::getenv(ENV_VAR_CRASH_REPORTER_PORT);
-    if (envCrashReporterPort && envCrashReporterPort[0] != '\0') {
-        crashReporterPort = std::atoi(envCrashReporterPort);
+    std::string envCrashReporterPort = SafeGetenv(ENV_VAR_CRASH_REPORTER_PORT);
+    if (!envCrashReporterPort.empty()) {
+        crashReporterPort = std::atoi(envCrashReporterPort.c_str());
         spdlog::info("Env override for crashReporterPort: {}", crashReporterPort);
     }
 
-    const char* envFlushInterval = std::getenv(ENV_VAR_FLUSH_INTERVAL_MS);
-    if (envFlushInterval && envFlushInterval[0] != '\0') {
-        flushIntervalMs = std::atoi(envFlushInterval);
+    std::string envFlushInterval = SafeGetenv(ENV_VAR_FLUSH_INTERVAL_MS);
+    if (!envFlushInterval.empty()) {
+        flushIntervalMs = std::atoi(envFlushInterval.c_str());
         spdlog::info("Env override for flushIntervalMs: {}", flushIntervalMs);
     }
 
-    const char* envMaxPacketSize = std::getenv(ENV_VAR_MAX_PACKET_SIZE);
-    if (envMaxPacketSize && envMaxPacketSize[0] != '\0') {
-        maxPacketSize = std::atoi(envMaxPacketSize);
+    std::string envMaxPacketSize = SafeGetenv(ENV_VAR_MAX_PACKET_SIZE);
+    if (!envMaxPacketSize.empty()) {
+        maxPacketSize = std::atoi(envMaxPacketSize.c_str());
         spdlog::info("Env override for maxPacketSize: {}", maxPacketSize);
     }
 
 #ifdef GAMELIFT_USE_STD
-    return MetricsParameters(std::string(statsdHost), statsdPort, std::string(crashReporterHost), crashReporterPort, flushIntervalMs, maxPacketSize);
-#else
     return MetricsParameters(statsdHost, statsdPort, crashReporterHost, crashReporterPort, flushIntervalMs, maxPacketSize);
+#else
+    return MetricsParameters(statsdHost.c_str(), statsdPort, crashReporterHost.c_str(), crashReporterPort, flushIntervalMs, maxPacketSize);
 #endif
 }
 

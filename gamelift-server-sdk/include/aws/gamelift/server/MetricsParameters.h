@@ -13,6 +13,11 @@
 
 #include <aws/gamelift/common/GameLift_EXPORTS.h>
 #include <string.h>
+#ifdef _MSC_VER
+#define GAMELIFT_STRNCPY(dest, dest_size, src, count) strncpy_s(dest, dest_size, src, count)
+#else
+#define GAMELIFT_STRNCPY(dest, dest_size, src, count) do { strncpy(dest, src, count); dest[count] = '\0'; } while(0)
+#endif
 
 #ifndef GAMELIFT_USE_STD
 #ifndef MAX_STATSD_HOST_LENGTH
@@ -68,21 +73,17 @@ public:
                      int crashReporterPort, int flushIntervalMs, int maxPacketSize) 
         : m_statsDPort(statsDPort), m_crashReporterPort(crashReporterPort), m_flushIntervalMs(flushIntervalMs), m_maxPacketSize(maxPacketSize) {
         if (statsDHost != nullptr) {
-            strncpy(m_statsDHost, statsDHost, MAX_STATSD_HOST_LENGTH - 1);
-            m_statsDHost[MAX_STATSD_HOST_LENGTH - 1] = '\0';
+            GAMELIFT_STRNCPY(m_statsDHost, MAX_STATSD_HOST_LENGTH, statsDHost, MAX_STATSD_HOST_LENGTH - 1);
         }
         if (crashReporterHost != nullptr) {
-            strncpy(m_crashReporterHost, crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
-            m_crashReporterHost[MAX_CRASH_REPORTER_HOST_LENGTH - 1] = '\0';
+            GAMELIFT_STRNCPY(m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH, crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
         }
     }
 
     MetricsParameters(const MetricsParameters &other) : m_statsDPort(other.m_statsDPort), m_crashReporterPort(other.m_crashReporterPort), 
                                                        m_flushIntervalMs(other.m_flushIntervalMs), m_maxPacketSize(other.m_maxPacketSize) {
-        strncpy(m_statsDHost, other.m_statsDHost, MAX_STATSD_HOST_LENGTH - 1);
-        m_statsDHost[MAX_STATSD_HOST_LENGTH - 1] = '\0';
-        strncpy(m_crashReporterHost, other.m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
-        m_crashReporterHost[MAX_CRASH_REPORTER_HOST_LENGTH - 1] = '\0';
+        GAMELIFT_STRNCPY(m_statsDHost, MAX_STATSD_HOST_LENGTH, other.m_statsDHost, MAX_STATSD_HOST_LENGTH - 1);
+        GAMELIFT_STRNCPY(m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH, other.m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
     }
 
     MetricsParameters &operator=(const MetricsParameters &other) {
@@ -91,10 +92,8 @@ public:
             m_flushIntervalMs = other.m_flushIntervalMs;
             m_maxPacketSize = other.m_maxPacketSize;
             m_crashReporterPort = other.m_crashReporterPort;
-            strncpy(m_statsDHost, other.m_statsDHost, MAX_STATSD_HOST_LENGTH - 1);
-            m_statsDHost[MAX_STATSD_HOST_LENGTH - 1] = '\0';
-            strncpy(m_crashReporterHost, other.m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
-            m_crashReporterHost[MAX_CRASH_REPORTER_HOST_LENGTH - 1] = '\0';
+            GAMELIFT_STRNCPY(m_statsDHost, MAX_STATSD_HOST_LENGTH, other.m_statsDHost, MAX_STATSD_HOST_LENGTH - 1);
+            GAMELIFT_STRNCPY(m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH, other.m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
         }
         return *this;
     }
@@ -108,8 +107,7 @@ public:
 
     inline void SetStatsDHost(const char *statsDHost) {
         if (statsDHost != nullptr) {
-            strncpy(m_statsDHost, statsDHost, MAX_STATSD_HOST_LENGTH - 1);
-            m_statsDHost[MAX_STATSD_HOST_LENGTH - 1] = '\0';
+            GAMELIFT_STRNCPY(m_statsDHost, MAX_STATSD_HOST_LENGTH, statsDHost, MAX_STATSD_HOST_LENGTH - 1);
         }
     }
     inline void SetStatsDPort(int statsDPort) { m_statsDPort = statsDPort; }
@@ -117,8 +115,7 @@ public:
     inline void SetMaxPacketSize(int maxPacketSize) { m_maxPacketSize = maxPacketSize; }
     inline void SetCrashReporterHost(const char *crashReporterHost) {
         if (crashReporterHost != nullptr) {
-            strncpy(m_crashReporterHost, crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
-            m_crashReporterHost[MAX_CRASH_REPORTER_HOST_LENGTH - 1] = '\0';
+            GAMELIFT_STRNCPY(m_crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH, crashReporterHost, MAX_CRASH_REPORTER_HOST_LENGTH - 1);
         }
     }
     inline void SetCrashReporterPort(int crashReporterPort) { m_crashReporterPort = crashReporterPort; }
@@ -136,3 +133,5 @@ private:
 } // namespace Server
 } // namespace GameLift
 } // namespace Aws
+
+#undef GAMELIFT_STRNCPY

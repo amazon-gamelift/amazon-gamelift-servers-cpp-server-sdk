@@ -85,9 +85,9 @@ bool WebSocketPlayer::Deserialize(const rapidjson::Value &value) {
     if (value.HasMember(PLAYER_ATTRIBUTES) && !value[PLAYER_ATTRIBUTES].IsNull()) {
         for (auto itr = value[PLAYER_ATTRIBUTES].MemberBegin(); itr != value[PLAYER_ATTRIBUTES].MemberEnd(); ++itr) {
             if (itr->name.IsString() && !itr->value.IsNull()) {
-                WebSocketAttributeValue value;
-                value.Deserialize(itr->value);
-                m_playerAttributes[itr->name.GetString()] = value;
+                WebSocketAttributeValue attrValue;
+                attrValue.Deserialize(itr->value);
+                m_playerAttributes[itr->name.GetString()] = attrValue;
             }
         }
     }
