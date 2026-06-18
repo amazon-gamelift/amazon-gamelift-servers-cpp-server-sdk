@@ -922,6 +922,97 @@ TEST_F(GameLiftServerStateTest, GIVEN_retriable_failure_WHEN_sendMessage_THEN_re
     // THEN
     ASSERT_TRUE(outcome.IsSuccess());
 }
+
+TEST_F(GameLiftServerStateTest, GIVEN_nonContainerComputeType_WHEN_listContainersNetworkInfo_THEN_returnsUnsupportedError) {
+    // GIVEN
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "EC2");
+#else
+    setenv("GAMELIFT_COMPUTE_TYPE", "EC2", 1);
+#endif
+
+    // WHEN
+    auto outcome = serverState->ListContainersNetworkInfo();
+
+    // THEN
+    EXPECT_FALSE(outcome.IsSuccess());
+    EXPECT_EQ(outcome.GetError().GetErrorType(), GAMELIFT_ERROR_TYPE::UNSUPPORTED_COMPUTE_TYPE_EXCEPTION);
+
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "");
+#else
+    unsetenv("GAMELIFT_COMPUTE_TYPE");
+#endif
+}
+
+TEST_F(GameLiftServerStateTest, GIVEN_noComputeType_WHEN_listContainersNetworkInfo_THEN_returnsUnsupportedError) {
+    // GIVEN
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "");
+#else
+    unsetenv("GAMELIFT_COMPUTE_TYPE");
+#endif
+
+    // WHEN
+    auto outcome = serverState->ListContainersNetworkInfo();
+
+    // THEN
+    EXPECT_FALSE(outcome.IsSuccess());
+    EXPECT_EQ(outcome.GetError().GetErrorType(), GAMELIFT_ERROR_TYPE::UNSUPPORTED_COMPUTE_TYPE_EXCEPTION);
+}
+
+TEST_F(GameLiftServerStateTest, GIVEN_containerTypeNoEndpointNoMetadata_WHEN_listContainersNetworkInfo_THEN_returnsServiceError) {
+    // GIVEN
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "CONTAINER");
+    _putenv_s("GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT", "");
+    _putenv_s("ECS_CONTAINER_METADATA_URI_V4", "");
+#else
+    setenv("GAMELIFT_COMPUTE_TYPE", "CONTAINER", 1);
+    unsetenv("GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT");
+    unsetenv("ECS_CONTAINER_METADATA_URI_V4");
+#endif
+
+    // WHEN
+    auto outcome = serverState->ListContainersNetworkInfo();
+
+    // THEN - cannot resolve endpoint from env var or metadata
+    EXPECT_FALSE(outcome.IsSuccess());
+    EXPECT_EQ(outcome.GetError().GetErrorType(), GAMELIFT_ERROR_TYPE::INTERNAL_SERVICE_EXCEPTION);
+
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "");
+#else
+    unsetenv("GAMELIFT_COMPUTE_TYPE");
+#endif
+}
+
+TEST_F(GameLiftServerStateTest, GIVEN_containerTypeWithUnreachableEndpoint_WHEN_listContainersNetworkInfo_THEN_returnsServiceError) {
+    // GIVEN
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "CONTAINER");
+    _putenv_s("GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT", "http://192.0.2.1:9999");
+#else
+    setenv("GAMELIFT_COMPUTE_TYPE", "CONTAINER", 1);
+    setenv("GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT", "http://192.0.2.1:9999", 1);
+#endif
+
+    // WHEN
+    auto outcome = serverState->ListContainersNetworkInfo();
+
+    // THEN - connection fails to unreachable address
+    EXPECT_FALSE(outcome.IsSuccess());
+    EXPECT_EQ(outcome.GetError().GetErrorType(), GAMELIFT_ERROR_TYPE::INTERNAL_SERVICE_EXCEPTION);
+
+#ifdef _WIN32
+    _putenv_s("GAMELIFT_COMPUTE_TYPE", "");
+    _putenv_s("GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT", "");
+#else
+    unsetenv("GAMELIFT_COMPUTE_TYPE");
+    unsetenv("GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT");
+#endif
+}
+
 } // namespace Test
 } // namespace Internal
 } // namespace GameLift

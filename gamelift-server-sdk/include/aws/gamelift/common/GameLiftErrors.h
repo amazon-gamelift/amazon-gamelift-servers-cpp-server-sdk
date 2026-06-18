@@ -66,7 +66,8 @@ enum class AWS_GAMELIFT_API GAMELIFT_ERROR_TYPE {
     WEBSOCKET_RETRIABLE_SEND_MESSAGE_FAILURE, // Retriable failure to send message to the Amazon GameLift Servers
                                               // Service WebSocket
     WEBSOCKET_SEND_MESSAGE_FAILURE,           // Failure to send message to the Amazon GameLift Servers WebSocket
-    VALIDATION_EXCEPTION                      // Client-side error when invalid parameters are passed.
+    VALIDATION_EXCEPTION,                     // Client-side error when invalid parameters are passed.
+    UNSUPPORTED_COMPUTE_TYPE_EXCEPTION        // API called on an unsupported compute type.
 };
 
 class AWS_GAMELIFT_API GameLiftError {
@@ -260,6 +261,8 @@ private:
                 return "WebSocket Send Message Failed.";
             case GAMELIFT_ERROR_TYPE::VALIDATION_EXCEPTION:
                 return "Validation exception.";
+            case GAMELIFT_ERROR_TYPE::UNSUPPORTED_COMPUTE_TYPE_EXCEPTION:
+                return "Unsupported compute type.";
             default:
                 return "Unknown Error";
         }
@@ -350,6 +353,8 @@ private:
                 return "Sending Message to the Amazon GameLift Servers WebSocket has failed.";
             case GAMELIFT_ERROR_TYPE::VALIDATION_EXCEPTION:
                 return "The input is invalid.";
+            case GAMELIFT_ERROR_TYPE::UNSUPPORTED_COMPUTE_TYPE_EXCEPTION:
+                return "This API is not supported on the current compute type.";
             default:
                 return "An unexpected error has occurred.";
         }

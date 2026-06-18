@@ -331,6 +331,13 @@ AWS_GAMELIFT_API GetComputeCertificateOutcome GetComputeCertificate();
  */
 AWS_GAMELIFT_API GetFleetRoleCredentialsOutcome GetFleetRoleCredentials(const Aws::GameLift::Server::Model::GetFleetRoleCredentialsRequest &request);
 
+/**
+Queries the container discovery server and returns network information for all containers
+running on the same instance. Only supported on container fleets.
+@return ListContainersNetworkInfoOutcome containing container names, IPs, IDs, and group types.
+*/
+AWS_GAMELIFT_API ListContainersNetworkInfoOutcome ListContainersNetworkInfo();
+
 } // namespace Server
 } // namespace GameLift
 } // namespace Aws

@@ -53,6 +53,7 @@
 #include <aws/gamelift/internal/security/ContainerMetadataFetcher.h>
 #include <aws/gamelift/internal/security/ContainerCredentialsFetcher.h>
 #include <aws/gamelift/internal/security/AwsSigV4Utility.h>
+#include "rapidjson/document.h"
 
 using namespace Aws::GameLift;
 
@@ -1063,6 +1064,151 @@ Aws::GameLift::Internal::GameLiftServerState::GetFleetRoleCredentials(const Aws:
     auto result = Aws::GameLift::Internal::GetFleetRoleCredentialsAdapter::convert(webSocketResponse.get());
     m_instanceRoleResultCache[webSocketRequest.GetRoleArn()] = result;
     return GetFleetRoleCredentialsOutcome(result);
+}
+
+ListContainersNetworkInfoOutcome Aws::GameLift::Internal::GameLiftServerState::ListContainersNetworkInfo() {
+    spdlog::info("ListContainersNetworkInfo called");
+    const char *computeType = std::getenv(ENV_VAR_COMPUTE_TYPE);
+    if (!computeType || std::strcmp(computeType, COMPUTE_TYPE_CONTAINER) != 0) {
+        spdlog::error("ListContainersNetworkInfo is only supported on container fleets");
+        return ListContainersNetworkInfoOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::UNSUPPORTED_COMPUTE_TYPE_EXCEPTION,
+            "ListContainersNetworkInfo is only supported on container fleets."));
+    }
+
+    HttpClient httpClient;
+    auto fetchOutcome = FetchDiscoveryServerResponse(httpClient);
+    if (!fetchOutcome.IsSuccess()) {
+        spdlog::error("{}", fetchOutcome.GetError());
+        return ListContainersNetworkInfoOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::INTERNAL_SERVICE_EXCEPTION,
+            fetchOutcome.GetError().c_str()));
+    }
+
+    return ParseDiscoveryServerResponse(fetchOutcome.GetResult());
+}
+
+// Resolves the discovery server endpoint and fetches the /v1/ response.
+// Strategy:
+//   1. Use GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT env var set by GameLift on container fleets
+//   2. Fallback: query ECS container metadata to get this container's IP, derive the bridge gateway
+//      (replace last octet with .1), and use that as the discovery server address on the known port.
+//   3. If the env var endpoint fails to connect, retry with the metadata-derived endpoint in case
+//      the env var is stale (e.g., Docker bridge IP changed).
+Outcome<Aws::GameLift::Internal::HttpResponse, std::string> Aws::GameLift::Internal::GameLiftServerState::FetchDiscoveryServerResponse(HttpClient &httpClient) {
+    const char *endpointEnv = std::getenv(ENV_VAR_CONTAINER_DISCOVERY_SERVER_ENDPOINT);
+    std::string endpoint = endpointEnv ? endpointEnv : "";
+
+    if (endpoint.empty()) {
+        endpoint = ResolveDiscoveryEndpointFromMetadata(httpClient);
+        if (endpoint.empty()) {
+            return std::string("Could not resolve discovery server endpoint.");
+        }
+        spdlog::info("Resolved discovery server endpoint from ECS metadata: {}", endpoint);
+    } else {
+        spdlog::info("Using discovery server endpoint from env var: {}", endpoint);
+    }
+
+    std::string url = endpoint + "/v1/";
+
+    try {
+        return httpClient.SendGetRequest(url);
+    } catch (const std::runtime_error &e) {
+        if (endpointEnv) {
+            spdlog::warn("Failed to connect at {}: {}. Attempting fallback.", url, e.what());
+            std::string fallback = ResolveDiscoveryEndpointFromMetadata(httpClient);
+            if (!fallback.empty() && fallback != endpoint) {
+                spdlog::info("Fallback: trying {}", fallback);
+                try {
+                    return httpClient.SendGetRequest(fallback + "/v1/");
+                } catch (const std::runtime_error &fe) {
+                    return std::string("Failed to connect to discovery server: " + std::string(fe.what()));
+                }
+            }
+        }
+        return std::string("Failed to connect to discovery server: " + std::string(e.what()));
+    }
+}
+
+std::string Aws::GameLift::Internal::GameLiftServerState::ResolveDiscoveryEndpointFromMetadata(HttpClient &httpClient) {
+    const char *metadataUri = std::getenv(ENV_VAR_CONTAINER_METADATA_URI);
+    if (!metadataUri) {
+        return "";
+    }
+
+    try {
+        HttpResponse metadataResponse = httpClient.SendGetRequest(std::string(metadataUri));
+        if (!metadataResponse.IsSuccessfulStatusCode()) {
+            return "";
+        }
+
+        rapidjson::Document metaDoc;
+        if (metaDoc.Parse(metadataResponse.body.c_str()).HasParseError()) {
+            return "";
+        }
+
+        // ECS container metadata returns: {"Networks":[{"NetworkMode":"bridge","IPv4Addresses":["172.17.0.5"]}]}
+        // The bridge gateway is always .1 on the container's subnet (e.g., 172.17.0.5 → 172.17.0.1)
+        if (metaDoc.HasMember("Networks") && metaDoc["Networks"].IsArray() && metaDoc["Networks"].Size() > 0) {
+            const auto &network = metaDoc["Networks"][0];
+            if (network.HasMember("IPv4Addresses") && network["IPv4Addresses"].IsArray()
+                && network["IPv4Addresses"].Size() > 0) {
+                std::string containerIp = network["IPv4Addresses"][0].GetString();
+                std::string gatewayIp = containerIp.substr(0, containerIp.find_last_of('.')) + ".1";
+                return "http://" + gatewayIp + ":" + std::to_string(DISCOVERY_SERVER_PORT);
+            }
+        }
+    } catch (const std::runtime_error &) {
+    }
+
+    return "";
+}
+
+ListContainersNetworkInfoOutcome Aws::GameLift::Internal::GameLiftServerState::ParseDiscoveryServerResponse(HttpResponse &response) {
+    if (!response.IsSuccessfulStatusCode()) {
+        spdlog::error("Discovery server returned HTTP {}: {}", response.statusCode, response.body);
+        return ListContainersNetworkInfoOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::INTERNAL_SERVICE_EXCEPTION,
+            ("Discovery server returned HTTP " + std::to_string(response.statusCode)).c_str()));
+    }
+
+    rapidjson::Document document;
+    if (document.Parse(response.body.c_str()).HasParseError() || !document.IsArray()) {
+        spdlog::error("Failed to parse discovery server response: {}", response.body);
+        return ListContainersNetworkInfoOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::INTERNAL_SERVICE_EXCEPTION,
+            "Invalid response from discovery server"));
+    }
+
+    if (document.Size() == 0) {
+        spdlog::warn("Discovery server returned empty container list");
+    }
+
+    spdlog::info("ListContainersNetworkInfo response: {}", response.body);
+
+    Aws::GameLift::Server::Model::ListContainersNetworkInfoResult result;
+    for (rapidjson::SizeType i = 0; i < document.Size(); i++) {
+        const auto &entry = document[i];
+        if (!entry.IsObject()) continue;
+
+        Aws::GameLift::Server::Model::ContainerNetworkInfo info;
+        if (entry.HasMember("containerName") && entry["containerName"].IsString()) {
+            info.SetContainerName(entry["containerName"].GetString());
+        }
+        if (entry.HasMember("containerId") && entry["containerId"].IsString()) {
+            info.SetContainerId(entry["containerId"].GetString());
+        }
+        if (entry.HasMember("ipAddress") && entry["ipAddress"].IsString()) {
+            info.SetIpAddress(entry["ipAddress"].GetString());
+        }
+        if (entry.HasMember("containerGroupType") && entry["containerGroupType"].IsString()) {
+            std::string groupType = entry["containerGroupType"].GetString();
+            if (groupType == "PER_INSTANCE") {
+                info.SetContainerGroupType(Aws::GameLift::Server::Model::ContainerGroupType::PER_INSTANCE);
+            } else {
+                info.SetContainerGroupType(Aws::GameLift::Server::Model::ContainerGroupType::GAME_SERVER);
+            }
+        }
+        result.AddContainerNetworkInfo(info);
+    }
+
+    return ListContainersNetworkInfoOutcome(result);
 }
 
 void Aws::GameLift::Internal::GameLiftServerState::GetOverrideParams(
