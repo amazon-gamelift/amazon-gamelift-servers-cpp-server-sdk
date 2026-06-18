@@ -15,6 +15,7 @@
 #include <aws/gamelift/internal/network/GameLiftWebSocketClientManager.h>
 #include <aws/gamelift/internal/network/IGameLiftMessageHandler.h>
 #include <aws/gamelift/internal/network/IWebSocketClientWrapper.h>
+#include <aws/gamelift/internal/util/HttpClient.h>
 #include <aws/gamelift/metrics/IMetricsProcessor.h>
 #include <aws/gamelift/internal/network/callback/CreateGameSessionCallback.h>
 #include <aws/gamelift/internal/network/callback/DescribePlayerSessionsCallback.h>
@@ -60,6 +61,9 @@ private:
     static constexpr const char *ENV_VAR_SDK_TOOL_VERSION = "GAMELIFT_SDK_TOOL_VERSION";
     static constexpr const char *COMPUTE_TYPE_CONTAINER = "CONTAINER";
     static constexpr const char *AGENTLESS_CONTAINER_PROCESS_ID = "ManagedResource";
+    static constexpr const char *ENV_VAR_CONTAINER_DISCOVERY_SERVER_ENDPOINT = "GAMELIFT_CONTAINER_DISCOVERY_SERVER_ENDPOINT";
+    static constexpr const char *ENV_VAR_CONTAINER_METADATA_URI = "ECS_CONTAINER_METADATA_URI_V4";
+    static constexpr const int DISCOVERY_SERVER_PORT = 4092;
 
     static constexpr const int HEALTHCHECK_INTERVAL_MILLIS = 60 * 1000;
     static constexpr const int HEALTHCHECK_MAX_JITTER_MILLIS = 10 * 1000;
@@ -208,6 +212,8 @@ private:
 public:
     GetFleetRoleCredentialsOutcome GetFleetRoleCredentials(const Aws::GameLift::Server::Model::GetFleetRoleCredentialsRequest &request);
 
+    ListContainersNetworkInfoOutcome ListContainersNetworkInfo();
+
     void SetGlobalProcessor(Aws::GameLift::Metrics::IMetricsProcessor* processor);
 
     // When within 15 minutes of expiration we retrieve new instance role credentials
@@ -216,6 +222,9 @@ public:
 private:
     bool AssertNetworkInitialized();
     void SetUpCallbacks();
+    std::string ResolveDiscoveryEndpointFromMetadata(HttpClient &httpClient);
+    Outcome<HttpResponse, std::string> FetchDiscoveryServerResponse(HttpClient &httpClient);
+    ListContainersNetworkInfoOutcome ParseDiscoveryServerResponse(HttpResponse &response);
     static void DetectGameLiftTools();
 
     bool m_processReady;

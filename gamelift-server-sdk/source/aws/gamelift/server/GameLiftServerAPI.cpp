@@ -24,7 +24,7 @@
 
 using namespace Aws::GameLift;
 
-static const std::string sdkVersion = "5.4.1";
+static const std::string sdkVersion = "5.5.0";
 
 #ifdef GAMELIFT_USE_STD
 Aws::GameLift::AwsStringOutcome Server::GetSdkVersion() { return AwsStringOutcome(sdkVersion); }
@@ -394,6 +394,21 @@ GetFleetRoleCredentialsOutcome Server::GetFleetRoleCredentials(const Aws::GameLi
     }
 
     return GetFleetRoleCredentialsOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::NOT_INITIALIZED));
+}
+
+ListContainersNetworkInfoOutcome Server::ListContainersNetworkInfo() {
+    Internal::GetInstanceOutcome giOutcome = Internal::GameLiftCommonState::GetInstance(Internal::GAMELIFT_INTERNAL_STATE_TYPE::SERVER);
+
+    if (!giOutcome.IsSuccess()) {
+        return ListContainersNetworkInfoOutcome(giOutcome.GetError());
+    }
+
+    auto *serverState = dynamic_cast<Internal::GameLiftServerState *>(giOutcome.GetResult());
+    if (serverState != nullptr) {
+        return serverState->ListContainersNetworkInfo();
+    }
+
+    return ListContainersNetworkInfoOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::NOT_INITIALIZED));
 }
 
 GenericOutcome Server::InitMetrics() {
