@@ -17,6 +17,7 @@
 
 #include <aws/gamelift/server/ProcessParameters.h>
 #include <aws/gamelift/server/MetricsParameters.h>
+#include <aws/gamelift/server/CustomLoggerConfiguration.h>
 #include <aws/gamelift/server/model/DescribePlayerSessionsRequest.h>
 #include <aws/gamelift/server/model/GetFleetRoleCredentialsRequest.h>
 #include <aws/gamelift/server/model/ServerParameters.h>
@@ -80,6 +81,25 @@ Uses the provided parameters exactly as specified. To use environment variables 
 @return GenericOutcome indicating success or failure.
 */
 AWS_GAMELIFT_API GenericOutcome InitMetrics(const Aws::GameLift::Server::MetricsParameters &metricsParameters);
+
+/**
+Initializes custom logging with the specified callback parameters.
+For best results, call InitCustomLogger() BEFORE InitSDK() so that SDK initialization
+diagnostics (connection setup, logger init, InitSDK errors) are routed to your
+custom log callback from the very start.
+
+Calling InitCustomLogger() after InitSDK() is also safe — the switch is thread-safe with
+respect to SDK background threads, and log output switches to the callback from that
+point onward; messages logged before the call go to the default file/console logger.
+
+This method can be called at most once; subsequent calls return ALREADY_INITIALIZED
+and do NOT change the existing logger. A null callback is rejected with
+BAD_REQUEST_EXCEPTION.
+
+@param logParameters Parameters for configuring custom logging (callback, userData, minimumLogLevel).
+@return GenericOutcome indicating success or failure.
+*/
+AWS_GAMELIFT_API GenericOutcome InitCustomLogger(const Aws::GameLift::Server::CustomLoggerConfiguration &logParameters);
 
 /**
 Signals Amazon GameLift Servers that the process is ready to receive GameSessions.
@@ -208,6 +228,25 @@ Uses the provided parameters exactly as specified. To use environment variables 
 @return GenericOutcome indicating success or failure.
 */
 AWS_GAMELIFT_API GenericOutcome InitMetrics(const Aws::GameLift::Server::MetricsParameters &metricsParameters);
+
+/**
+Initializes custom logging with the specified callback parameters.
+For best results, call InitCustomLogger() BEFORE InitSDK() so that SDK initialization
+diagnostics (connection setup, logger init, InitSDK errors) are routed to your
+custom log callback from the very start.
+
+Calling InitCustomLogger() after InitSDK() is also safe — the switch is thread-safe with
+respect to SDK background threads, and log output switches to the callback from that
+point onward; messages logged before the call go to the default file/console logger.
+
+This method can be called at most once; subsequent calls return ALREADY_INITIALIZED
+and do NOT change the existing logger. A null callback is rejected with
+BAD_REQUEST_EXCEPTION.
+
+@param logParameters Parameters for configuring custom logging (callback, userData, minimumLogLevel).
+@return GenericOutcome indicating success or failure.
+*/
+AWS_GAMELIFT_API GenericOutcome InitCustomLogger(const Aws::GameLift::Server::CustomLoggerConfiguration &logParameters);
 
 /**
 Signals Amazon GameLift Servers that the process is ready to receive GameSessions.

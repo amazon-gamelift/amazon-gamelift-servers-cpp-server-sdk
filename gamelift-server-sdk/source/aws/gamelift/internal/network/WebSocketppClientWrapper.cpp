@@ -56,8 +56,16 @@ WebSocketppClientWrapper::WebSocketppClientWrapper(std::shared_ptr<WebSocketppCl
     // --- SDK shut down, and WebSocket client "->stop_perpetual()" is invoked ---
     // socket_thread_1: No longer waits for a connection, thread ends
     // socket_thread_2: Finishes handling 2nd connection, then thread ends
-    m_socket_thread_1 = std::unique_ptr<std::thread>(new std::thread([this] { m_webSocketClient->run(); }));
-    m_socket_thread_2 = std::unique_ptr<std::thread>(new std::thread([this] { m_webSocketClient->run(); }));
+    m_socket_thread_1 = std::unique_ptr<std::thread>(new std::thread([this] {
+        spdlog::info("socket_thread_1 entering ASIO run() loop");
+        m_webSocketClient->run();
+        spdlog::info("socket_thread_1 exited ASIO run() loop");
+    }));
+    m_socket_thread_2 = std::unique_ptr<std::thread>(new std::thread([this] {
+        spdlog::info("socket_thread_2 entering ASIO run() loop");
+        m_webSocketClient->run();
+        spdlog::info("socket_thread_2 exited ASIO run() loop");
+    }));
 
     // Set callbacks
     using std::placeholders::_1;
@@ -117,7 +125,7 @@ GenericOutcome WebSocketppClientWrapper::Connect(const Uri &uri) {
                                                 websocketpp::lib::error_code closeErrorCode;
                                                 m_webSocketClient->close(oldConnection->get_handle(), websocketpp::close::status::going_away,
                                                                          "Websocket client reconnecting", closeErrorCode);
-                                                if (errorCode.value()) {
+                                                if (closeErrorCode.value()) {
                                                     spdlog::warn("Failed to close old websocket after a connection refresh, ignoring.");
                                                 }
                                             }
@@ -193,6 +201,16 @@ WebSocketppClientType::connection_ptr WebSocketppClientWrapper::PerformConnect(c
         spdlog::info("Connection request created successfully. Waiting for connection to establish...");
     }
 
+    // Record which connection we're about to await, so OnConnected/OnError can tell it
+    // apart from stale callbacks of previously-abandoned connections. Set before connect()
+    // so it is in place before any callback can fire.
+    {
+        std::lock_guard<std::mutex> lk(m_lock);
+        m_pendingConnection = newConnection;
+        m_connectionStateChanged = false;
+        m_fail_error_code.clear();
+    }
+
     // Queue a new connection request (the socket thread will act on it and attempt to connect)
     try {
         m_webSocketClient->connect(newConnection);
@@ -201,15 +219,35 @@ WebSocketppClientType::connection_ptr WebSocketppClientWrapper::PerformConnect(c
         spdlog::error("Exception while trying to connect with the webSocketClient: {}", e.what());
     }
     spdlog::info("Connection request queued.");
-    // Wait for connection to succeed or fail (this makes connection synchronous)
+    // Wait for the connection to succeed or fail (this makes connection synchronous).
+    // Bounded by CONNECT_WAIT_TIMEOUT_MILLIS so we never block forever if neither
+    // OnConnected nor OnError ever fires (e.g. a stalled handshake the websocketpp
+    // open-handshake timeout does not cover).
     {
         std::unique_lock<std::mutex> lk(m_lock);
-        m_cond.wait(lk, [this] { return m_connectionStateChanged; });
-        spdlog::info("Connection state changed: {}", m_fail_error_code.message());
-        errorCode = m_fail_error_code;
-        // Reset
+        const bool signaled = m_cond.wait_for(lk, std::chrono::milliseconds(CONNECT_WAIT_TIMEOUT_MILLIS),
+                                              [this] { return m_connectionStateChanged; });
+        if (!signaled) {
+            spdlog::warn("Timed out after {} ms waiting for connection to open or fail; abandoning this attempt.",
+                         CONNECT_WAIT_TIMEOUT_MILLIS);
+            // Surface a retryable timeout so the retry strategy advances to the next attempt.
+            errorCode = websocketpp::lib::error_code(websocketpp::error::open_handshake_timeout);
+        } else {
+            spdlog::info("Connection state changed: {}", m_fail_error_code.message());
+            errorCode = m_fail_error_code;
+        }
+        // Stop awaiting this connection; any later callback for it will now be ignored.
+        m_pendingConnection = nullptr;
         m_connectionStateChanged = false;
         m_fail_error_code.clear();
+    }
+
+    // If we failed/abandoned the attempt, proactively close the connection so it does not
+    // linger or fire callbacks later. Errors here are expected (e.g. not-yet-open) and ignored.
+    if (errorCode.value() && newConnection) {
+        websocketpp::lib::error_code closeEc;
+        m_webSocketClient->close(newConnection->get_handle(), websocketpp::close::status::going_away,
+                                 "Abandoning failed/stalled connection attempt", closeEc);
     }
 
     if (errorCode.value()) {
@@ -326,12 +364,37 @@ bool WebSocketppClientWrapper::IsConnected() {
 
 void WebSocketppClientWrapper::OnConnected(websocketpp::connection_hdl connection) {
     spdlog::info("Connected to WebSocket");
+    bool isStale = false;
     // aquire lock and set condition variables (let main thread know connection is successful)
     {
         std::lock_guard<std::mutex> lk(m_lock);
-        // set the state change variables and notify the thread that is connecting
-        m_connectionStateChanged = true;
+        // Ignore callbacks from a connection we are no longer awaiting (e.g. one abandoned
+        // after a wait timeout). Otherwise a late callback could falsely satisfy the wait
+        // of a subsequent connection attempt.
+        WebSocketppClientType::connection_ptr con = m_webSocketClient->get_con_from_hdl(connection);
+        if (!m_pendingConnection || con != m_pendingConnection) {
+            isStale = true;
+        } else {
+            // set the state change variables and notify the thread that is connecting
+            m_connectionStateChanged = true;
+        }
     }
+
+    if (isStale) {
+        // The handshake for this connection completed after we stopped awaiting it (e.g. the
+        // connect wait timed out and PerformConnect's close() was a no-op because the socket
+        // was not yet open). The connection is now open with no owner, so close it here to
+        // avoid leaking the socket. We close outside of m_lock in case close() synchronously
+        // triggers callbacks that also acquire m_lock.
+        spdlog::warn("Ignoring OnConnected for a connection that is no longer being awaited; closing stale connection.");
+        websocketpp::lib::error_code closeEc;
+        m_webSocketClient->close(connection, websocketpp::close::status::going_away, "Closing stale connection", closeEc);
+        if (closeEc) {
+            spdlog::warn("Failed to close stale connection, ignoring: {}", closeEc.message());
+        }
+        return;
+    }
+
     m_cond.notify_one();
 }
 
@@ -342,6 +405,12 @@ void WebSocketppClientWrapper::OnError(websocketpp::connection_hdl connection) {
     // aquire lock and set condition variables (let main thread know an error has occurred)
     {
         std::lock_guard<std::mutex> lk(m_lock);
+        // Ignore errors from a connection we are no longer awaiting (e.g. one abandoned
+        // after a wait timeout), so a late failure can't disturb a later attempt's wait.
+        if (!m_pendingConnection || con != m_pendingConnection) {
+            spdlog::warn("Ignoring OnError for a connection that is no longer being awaited.");
+            return;
+        }
         // set the state change variables and notify the thread that is connecting
         m_connectionStateChanged = true;
         m_fail_error_code = con->get_ec();
