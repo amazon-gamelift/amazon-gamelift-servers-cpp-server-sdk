@@ -1,0 +1,3 @@
+- Adds the InitCustomLogger() server SDK action to route server SDK log output to a custom logging callback, for example the Unreal Engine logging system.
+- Improves logging with thread IDs in log messages and more robust logger initialization.
+- Fixes SDK initialization to report failures correctly, and prevents the server from waiting indefinitely on a broken WebSocket reconnection.

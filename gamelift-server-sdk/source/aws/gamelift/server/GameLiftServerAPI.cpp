@@ -15,6 +15,7 @@
 #include <aws/gamelift/internal/network/WebSocketppClientWrapper.h>
 #include <aws/gamelift/server/ProcessParameters.h>
 #include <aws/gamelift/server/MetricsParameters.h>
+#include <aws/gamelift/server/CustomLoggerConfiguration.h>
 #include <aws/gamelift/metrics/GlobalMetricsProcessor.h>
 #include <aws/gamelift/metrics/MetricsSettings.h>
 #include <aws/gamelift/metrics/MetricsUtils.h>
@@ -24,7 +25,7 @@
 
 using namespace Aws::GameLift;
 
-static const std::string sdkVersion = "5.5.0";
+static const std::string sdkVersion = "5.6.0";
 
 #ifdef GAMELIFT_USE_STD
 Aws::GameLift::AwsStringOutcome Server::GetSdkVersion() { return AwsStringOutcome(sdkVersion); }
@@ -32,7 +33,10 @@ Aws::GameLift::AwsStringOutcome Server::GetSdkVersion() { return AwsStringOutcom
 Server::InitSDKOutcome Server::InitSDK() { return InitSDK(Aws::GameLift::Server::Model::ServerParameters()); }
 
 Server::InitSDKOutcome Server::InitSDK(const Aws::GameLift::Server::Model::ServerParameters &serverParameters) {
-    Internal::LoggerHelper::InitializeLogger(serverParameters.GetProcessId());
+    GenericOutcome loggerOutcome = Internal::LoggerHelper::InitializeLogger(serverParameters.GetProcessId());
+    if (!loggerOutcome.IsSuccess()) {
+        return InitSDKOutcome(loggerOutcome.GetError());
+    }
     spdlog::info("Initializing GameLift SDK");
     // Initialize the WebSocketWrapper
     std::shared_ptr<Internal::IWebSocketClientWrapper> webSocketClientWrapper;
@@ -54,6 +58,8 @@ Server::InitSDKOutcome Server::InitSDK(const Aws::GameLift::Server::Model::Serve
         if (globalProcessor != nullptr) {
             initOutcome.GetResult()->SetGlobalProcessor(globalProcessor);
         }
+    } else {
+        spdlog::error("Failed to create server state instance");
     }
     return initOutcome;
 }
@@ -192,7 +198,10 @@ Aws::GameLift::AwsStringOutcome Server::GetSdkVersion() { return AwsStringOutcom
 GenericOutcome Server::InitSDK() { return InitSDK(Aws::GameLift::Server::Model::ServerParameters()); }
 
 GenericOutcome Server::InitSDK(const Aws::GameLift::Server::Model::ServerParameters &serverParameters) {
-    Internal::LoggerHelper::InitializeLogger(serverParameters.GetProcessId());
+    GenericOutcome loggerOutcome = Internal::LoggerHelper::InitializeLogger(serverParameters.GetProcessId());
+    if (!loggerOutcome.IsSuccess()) {
+        return loggerOutcome;
+    }
     spdlog::info("Initializing server SDK");
     // Initialize the WebSocketWrapper
     Internal::InitSDKOutcome initOutcome =
@@ -211,6 +220,9 @@ GenericOutcome Server::InitSDK(const Aws::GameLift::Server::Model::ServerParamet
         if (globalProcessor != nullptr) {
             initOutcome.GetResult()->SetGlobalProcessor(globalProcessor);
         }
+    } else {
+        spdlog::error("Failed to create server state instance");
+        return GenericOutcome(initOutcome.GetError());
     }
     return GenericOutcome(nullptr);
 }
@@ -363,7 +375,7 @@ DescribePlayerSessionsOutcome Server::DescribePlayerSessions(const Aws::GameLift
 GenericOutcome Server::Destroy() {
     Aws::GameLift::Metrics::MetricsTerminate();
     spdlog::info("Metrics terminated");
-    return Internal::GameLiftCommonState::DestroyInstance(); 
+    return Internal::GameLiftCommonState::DestroyInstance();
 }
 
 GetComputeCertificateOutcome Server::GetComputeCertificate() {
@@ -455,4 +467,15 @@ GenericOutcome Server::InitMetrics(const Aws::GameLift::Server::MetricsParameter
     }
 
     return GenericOutcome(nullptr);
+}
+
+GenericOutcome Server::InitCustomLogger(const Aws::GameLift::Server::CustomLoggerConfiguration &logParameters) {
+    // Reject null callback early — passing null would crash on the first log message.
+    if (logParameters.callback == nullptr) {
+        return GenericOutcome(GameLiftError(GAMELIFT_ERROR_TYPE::BAD_REQUEST_EXCEPTION,
+            "InitCustomLogger requires a non-null callback."));
+    }
+
+    // InitializeCallbackLogger's compare_exchange handles the already-registered case atomically.
+    return Internal::LoggerHelper::InitializeCallbackLogger(logParameters);
 }
