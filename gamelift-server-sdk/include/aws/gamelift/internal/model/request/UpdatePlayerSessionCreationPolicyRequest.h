@@ -37,7 +37,7 @@ public:
     UpdatePlayerSessionCreationPolicyRequest(UpdatePlayerSessionCreationPolicyRequest &&) = default;
     UpdatePlayerSessionCreationPolicyRequest &operator=(const UpdatePlayerSessionCreationPolicyRequest &) = default;
     UpdatePlayerSessionCreationPolicyRequest &operator=(UpdatePlayerSessionCreationPolicyRequest &&) = default;
-    ~UpdatePlayerSessionCreationPolicyRequest() = default;
+    ~UpdatePlayerSessionCreationPolicyRequest() override = default;
 
     inline const std::string &GetGameSessionId() const { return m_gameSessionId; }
 

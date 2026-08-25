@@ -420,6 +420,7 @@ void WebSocketppClientWrapper::OnError(websocketpp::connection_hdl connection) {
 }
 
 void WebSocketppClientWrapper::OnMessage(websocketpp::connection_hdl connection, websocketpp::config::asio_client::message_type::ptr msg) {
+    (void)connection;
     std::string message = msg->get_payload();
     spdlog::info("Received message from websocket endpoint");
 
@@ -434,7 +435,6 @@ void WebSocketppClientWrapper::OnMessage(websocketpp::connection_hdl connection,
     spdlog::info("Deserialized Message has Action: {}", action);
     const std::string &requestId = responseMessage.GetRequestId();
     const int statusCode = responseMessage.GetStatusCode();
-    const std::string &errorMessage = responseMessage.GetErrorMessage();
 
     // Default to a success response with no result pointer
     GenericOutcome response(nullptr);
@@ -461,6 +461,7 @@ void WebSocketppClientWrapper::OnMessage(websocketpp::connection_hdl connection,
 }
 
 websocketpp::lib::shared_ptr<asio::ssl::context> WebSocketppClientWrapper::OnTlsInit(websocketpp::connection_hdl hdl) {
+    (void)hdl;
     websocketpp::lib::shared_ptr<asio::ssl::context> contextPtr(new asio::ssl::context(asio::ssl::context::tlsv12));
     return contextPtr;
 }

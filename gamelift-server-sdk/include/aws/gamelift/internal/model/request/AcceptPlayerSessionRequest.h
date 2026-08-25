@@ -31,7 +31,7 @@ public:
     AcceptPlayerSessionRequest(AcceptPlayerSessionRequest &&) = default;
     AcceptPlayerSessionRequest &operator=(const AcceptPlayerSessionRequest &) = default;
     AcceptPlayerSessionRequest &operator=(AcceptPlayerSessionRequest &&) = default;
-    ~AcceptPlayerSessionRequest() = default;
+    ~AcceptPlayerSessionRequest() override = default;
 
     inline const std::string &GetGameSessionId() const { return m_gameSessionId; }
 

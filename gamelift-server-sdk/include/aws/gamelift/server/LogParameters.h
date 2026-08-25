@@ -101,7 +101,7 @@ public:
         }
 
         for (size_t i = 0; i < getLogPathCount(); i++) {
-            if (strcmp(getLogPath(i), other.getLogPath(i)) != 0) {
+            if (strcmp(getLogPath(static_cast<int>(i)), other.getLogPath(static_cast<int>(i))) != 0) {
                 return false;
             }
         }

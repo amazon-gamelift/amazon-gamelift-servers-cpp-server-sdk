@@ -162,14 +162,14 @@ std::vector<uint8_t> AwsSigV4Utility::ComputeHmacSha256(const std::vector<uint8_
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L // OpenSSL 1.1.0 or newer
     HMAC_CTX *ctx = HMAC_CTX_new();
-    HMAC_Init_ex(ctx, key.data(), key.size(), EVP_sha256(), nullptr);
+    HMAC_Init_ex(ctx, key.data(), static_cast<int>(key.size()), EVP_sha256(), nullptr);
     HMAC_Update(ctx, reinterpret_cast<const unsigned char *>(data.c_str()), data.size());
     HMAC_Final(ctx, hash, &len);
     HMAC_CTX_free(ctx);
 #else // Older versions of OpenSSL
     HMAC_CTX ctx;
     HMAC_CTX_init(&ctx);
-    HMAC_Init_ex(&ctx, key.data(), key.size(), EVP_sha256(), nullptr);
+    HMAC_Init_ex(&ctx, key.data(), static_cast<int>(key.size()), EVP_sha256(), nullptr);
     HMAC_Update(&ctx, reinterpret_cast<const unsigned char *>(data.c_str()), data.size());
     HMAC_Final(&ctx, hash, &len);
     HMAC_CTX_cleanup(&ctx);
