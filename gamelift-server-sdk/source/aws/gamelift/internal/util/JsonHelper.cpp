@@ -96,10 +96,10 @@ void JsonHelper::WriteLogParameters(rapidjson::Writer<rapidjson::StringBuffer> *
     writer->StartArray();
 
     for (size_t i = 0; i < value.getLogPathCount(); i++) {
-        const char *logPath = value.getLogPath(i);
+        const char *logPath = value.getLogPath(static_cast<int>(i));
         // If logPath is not empty, write it.
         if (logPath && logPath[0]) {
-            writer->String(value.getLogPath(i));
+            writer->String(value.getLogPath(static_cast<int>(i)));
         }
     }
 

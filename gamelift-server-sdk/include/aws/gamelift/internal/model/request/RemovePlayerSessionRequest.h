@@ -31,7 +31,7 @@ public:
     RemovePlayerSessionRequest(RemovePlayerSessionRequest &&) = default;
     RemovePlayerSessionRequest &operator=(const RemovePlayerSessionRequest &) = default;
     RemovePlayerSessionRequest &operator=(RemovePlayerSessionRequest &&) = default;
-    ~RemovePlayerSessionRequest() = default;
+    ~RemovePlayerSessionRequest() override = default;
 
     inline const std::string &GetGameSessionId() const { return m_gameSessionId; }
 

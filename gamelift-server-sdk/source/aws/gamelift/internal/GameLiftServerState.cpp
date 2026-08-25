@@ -59,7 +59,7 @@ using namespace Aws::GameLift;
 
 #ifdef GAMELIFT_USE_STD
 Aws::GameLift::Internal::GameLiftServerState::GameLiftServerState()
-    : m_onStartGameSession(nullptr), m_onProcessTerminate(nullptr), m_onHealthCheck(nullptr), m_processReady(false), m_terminationTime(-1),
+    : m_onStartGameSession(nullptr), m_onUpdateGameSession(nullptr), m_onProcessTerminate(nullptr), m_onHealthCheck(nullptr), m_processReady(false), m_terminationTime(-1),
       m_webSocketClientManager(nullptr), m_webSocketClientWrapper(nullptr),
       m_createGameSessionCallback(new CreateGameSessionCallback(this)), m_describePlayerSessionsCallback(new DescribePlayerSessionsCallback()),
       m_getComputeCertificateCallback(new GetComputeCertificateCallback()), m_getFleetRoleCredentialsCallback(new GetFleetRoleCredentialsCallback()),
@@ -360,7 +360,7 @@ bool Aws::GameLift::Internal::GameLiftServerState::AssertNetworkInitialized() { 
 
 #else
 Aws::GameLift::Internal::GameLiftServerState::GameLiftServerState()
-    : m_onStartGameSession(nullptr), m_onProcessTerminate(nullptr), m_onHealthCheck(nullptr), m_processReady(false), m_terminationTime(-1),
+    : m_onStartGameSession(nullptr), m_onUpdateGameSession(nullptr), m_onProcessTerminate(nullptr), m_onHealthCheck(nullptr), m_processReady(false), m_terminationTime(-1),
       m_webSocketClientManager(nullptr), m_webSocketClientWrapper(nullptr),
       m_createGameSessionCallback(new CreateGameSessionCallback(this)), m_describePlayerSessionsCallback(new DescribePlayerSessionsCallback()),
       m_getComputeCertificateCallback(new GetComputeCertificateCallback()), m_getFleetRoleCredentialsCallback(new GetFleetRoleCredentialsCallback()),

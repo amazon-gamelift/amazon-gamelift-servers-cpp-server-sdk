@@ -31,7 +31,7 @@ public:
     WebSocketStartMatchBackfillRequest(WebSocketStartMatchBackfillRequest &&) = default;
     WebSocketStartMatchBackfillRequest &operator=(const WebSocketStartMatchBackfillRequest &) = default;
     WebSocketStartMatchBackfillRequest &operator=(WebSocketStartMatchBackfillRequest &&) = default;
-    ~WebSocketStartMatchBackfillRequest() = default;
+    ~WebSocketStartMatchBackfillRequest() override = default;
 
     inline const std::string &GetTicketId() const { return m_ticketId; }
 

@@ -78,8 +78,7 @@ void Combiner::UpdateTimer(MetricMessage &current,
     // This is the second sample being added, hence we initialize it to 2.
     auto pair = m_timerSampleCount.emplace(current.Metric, 2);
 
-    const bool insertSuccess = pair.second;
-    assert(insertSuccess);
+    assert(pair.second);
 
     sampleCountIt = pair.first;
   }

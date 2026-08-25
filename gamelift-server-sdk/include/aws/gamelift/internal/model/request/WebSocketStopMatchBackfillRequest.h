@@ -29,7 +29,7 @@ public:
     WebSocketStopMatchBackfillRequest(WebSocketStopMatchBackfillRequest &&) = default;
     WebSocketStopMatchBackfillRequest &operator=(const WebSocketStopMatchBackfillRequest &) = default;
     WebSocketStopMatchBackfillRequest &operator=(WebSocketStopMatchBackfillRequest &&) = default;
-    ~WebSocketStopMatchBackfillRequest() = default;
+    ~WebSocketStopMatchBackfillRequest() override = default;
 
     inline const std::string &GetGameSessionArn() const { return m_gameSessionArn; }
     inline const std::string &GetMatchmakingConfigurationArn() const { return m_matchmakingConfigurationArn; }

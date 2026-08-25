@@ -29,7 +29,7 @@ public:
     WebSocketGetComputeCertificateResponse(WebSocketGetComputeCertificateResponse &&) = default;
     WebSocketGetComputeCertificateResponse &operator=(const WebSocketGetComputeCertificateResponse &) = default;
     WebSocketGetComputeCertificateResponse &operator=(WebSocketGetComputeCertificateResponse &&) = default;
-    ~WebSocketGetComputeCertificateResponse() = default;
+    ~WebSocketGetComputeCertificateResponse() override = default;
 
     inline const std::string &GetComputeName() const { return m_computeName; }
 

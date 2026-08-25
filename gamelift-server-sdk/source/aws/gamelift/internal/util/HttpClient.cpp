@@ -78,7 +78,7 @@ HttpResponse HttpClient::SendGetRequest(const std::string &url) {
 #endif
         }
 
-        ssize_t sent = send(sock, request.c_str(), request.length(), 0);
+        ssize_t sent = send(sock, request.c_str(), static_cast<int>(request.length()), 0);
         if (sent < 0) {
 #ifdef _WIN32
             throw std::runtime_error("Send failed, error number: " + std::to_string(WSAGetLastError()));
@@ -185,8 +185,8 @@ HttpResponse HttpClient::ParseHttpResponse(const std::string &response) {
     }
     if (response.find("Transfer-Encoding: chunked") != std::string::npos
         && response.find("Content-Type: application/json") != std::string::npos) {
-        int jsonStart = httpResponse.body.find("{");
-        int jsonEnd = httpResponse.body.find_last_of("}");
+        size_t jsonStart = httpResponse.body.find("{");
+        size_t jsonEnd = httpResponse.body.find_last_of("}");
         if (jsonStart != std::string::npos && jsonEnd != std::string::npos) {
             httpResponse.body = httpResponse.body.substr(jsonStart, jsonEnd - jsonStart + 2);
         }
