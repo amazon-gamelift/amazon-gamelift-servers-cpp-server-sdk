@@ -12,6 +12,7 @@
 #pragma once
 
 #include <aws/gamelift/internal/network/IWebSocketClientWrapper.h>
+#include <aws/gamelift/internal/retry/RetryStrategy.h>
 #include <condition_variable>
 #include <thread>
 #include <websocketpp/client.hpp>
@@ -36,6 +37,8 @@ typedef websocketpp::client<websocketpp::config::asio_tls_client> WebSocketppCli
 class WebSocketppClientWrapper : public IWebSocketClientWrapper {
 public:
     WebSocketppClientWrapper(std::shared_ptr<WebSocketppClientType> webSocketClient);
+    // connectRetryStrategy decides how Connect retries failed connection attempts (tests use a single attempt)
+    WebSocketppClientWrapper(std::shared_ptr<WebSocketppClientType> webSocketClient, std::shared_ptr<RetryStrategy> connectRetryStrategy);
 
     Aws::GameLift::GenericOutcome Connect(const Uri &uri) override;
     Aws::GameLift::GenericOutcome SendSocketMessage(const std::string &requestId, const std::string &message) override;
@@ -60,6 +63,7 @@ private:
 
     // The WebSocketpp objects this class wraps
     std::shared_ptr<WebSocketppClientType> m_webSocketClient;
+    std::shared_ptr<RetryStrategy> m_connectRetryStrategy;
     WebSocketppClientType::connection_ptr m_connection;
     // The connection PerformConnect is currently awaiting. Used so OnConnected/OnError can
     // ignore stale callbacks from a connection we have already abandoned after a wait

@@ -130,6 +130,11 @@ else()
     )
 endif()
 
+if(WIN32)
+    # WebSocketppClientWrapper loads trusted root CAs from the Windows certificate store
+    target_link_libraries(${TARGET_NAME} PRIVATE crypt32)
+endif()
+
 # If we are compiling for visual studio, create a sane directory tree.
 if(MSVC)
     source_group("Header Files\\aws\\gamelift\\common" FILES ${AWS_GAMELIFT_COMMON_HEADERS})

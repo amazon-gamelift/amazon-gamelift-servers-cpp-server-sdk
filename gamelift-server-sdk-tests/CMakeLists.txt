@@ -61,10 +61,19 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
         $<BUILD_INTERFACE:${SERVERSDK_INCLUDE_DIR}>
+        # asio is structured so that both the root and the asio sub-directory are needed (see the SDK's CMakeLists.txt)
+        $<BUILD_INTERFACE:${SERVERSDK_INCLUDE_DIR}/asio>
 )
+
+# WebSocketppClientWrapperTest uses websocketpp and asio, configured as in the SDK
+target_compile_definitions(${TARGET_NAME} PRIVATE ASIO_STANDALONE)
+if(WIN32)
+    target_compile_definitions(${TARGET_NAME} PRIVATE _WEBSOCKETPP_CPP11_STRICT_)
+endif()
 
 # OpenSSL
 find_package(OpenSSL REQUIRED)
+target_include_directories(${TARGET_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
 
 # -----------------------------
 # Set up link targets
@@ -74,6 +83,9 @@ target_link_libraries(${TARGET_NAME}
         gtest_main
         gmock_main
         ${SERVERSDK_LIBRARIES}
+    PRIVATE
+        # WebSocketppClientWrapperTest calls OpenSSL directly to generate test certificates
+        ${OPENSSL_LIBRARIES}
 )
 
 # Run clang-format if it exists

@@ -19,12 +19,73 @@
 #include <websocketpp/error.hpp>
 #include <spdlog/spdlog.h>
 
+#ifdef _WIN32
+#include <wincrypt.h>
+#ifdef _MSC_VER
+// Also needed by consumers of the static library, which link it without our CMake targets.
+#pragma comment(lib, "crypt32.lib")
+#endif
+#endif
+
 namespace Aws {
 namespace GameLift {
 namespace Internal {
 
+namespace {
+#ifdef _WIN32
+// OpenSSL does not read the Windows certificate stores, so copy their root CAs into the context.
+void LoadWindowsCertificateStore(SSL_CTX *context, DWORD location, const wchar_t *storeName) {
+    HCERTSTORE systemStore = CertOpenStore(CERT_STORE_PROV_SYSTEM_W, 0, 0, location | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG, storeName);
+    if (systemStore == nullptr) {
+        spdlog::warn("Unable to open a Windows root certificate store, error code {}", GetLastError());
+        return;
+    }
+    X509_STORE *trustStore = SSL_CTX_get_cert_store(context);
+    PCCERT_CONTEXT certificateContext = nullptr;
+    while ((certificateContext = CertEnumCertificatesInStore(systemStore, certificateContext)) != nullptr) {
+        const unsigned char *encoded = certificateContext->pbCertEncoded;
+        X509 *certificate = d2i_X509(nullptr, &encoded, static_cast<long>(certificateContext->cbCertEncoded));
+        if (certificate != nullptr) {
+            X509_STORE_add_cert(trustStore, certificate);
+            X509_free(certificate);
+        }
+    }
+    CertCloseStore(systemStore, 0);
+}
+
+void LoadPlatformRootCertificates(SSL_CTX *context) {
+    // ROOT holds the trusted roots (the current user's view includes the machine's). AuthRoot holds the third-party
+    // roots that Windows downloads through Automatic Root Certificates Update.
+    LoadWindowsCertificateStore(context, CERT_SYSTEM_STORE_CURRENT_USER, L"ROOT");
+    LoadWindowsCertificateStore(context, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"AuthRoot");
+}
+#else
+// OpenSSL's default locations are compiled in, so an OpenSSL built from source (OPENSSLDIR=/usr/local/ssl) misses the
+// distribution's CA bundle. Also load the first bundle found from the locations Go's crypto/x509 checks.
+void LoadPlatformRootCertificates(SSL_CTX *context) {
+    static const char *const bundlePaths[] = {
+        "/etc/ssl/certs/ca-certificates.crt",                // Debian, Ubuntu, Gentoo, Arch
+        "/etc/pki/tls/certs/ca-bundle.crt",                  // Fedora, RHEL, Amazon Linux
+        "/etc/ssl/ca-bundle.pem",                            // OpenSUSE
+        "/etc/pki/tls/cacert.pem",                           // OpenELEC
+        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // CentOS, RHEL 7
+        "/etc/ssl/cert.pem",                                 // Alpine, macOS
+    };
+    for (const char *bundlePath : bundlePaths) {
+        if (SSL_CTX_load_verify_locations(context, bundlePath, nullptr) == 1) {
+            break;
+        }
+    }
+}
+#endif
+} // namespace
+
 WebSocketppClientWrapper::WebSocketppClientWrapper(std::shared_ptr<WebSocketppClientType> webSocketClient)
-    : m_webSocketClient(webSocketClient), m_connectionStateChanged(false) {
+    : WebSocketppClientWrapper(webSocketClient, std::make_shared<GeometricBackoffRetryStrategy>()) {}
+
+WebSocketppClientWrapper::WebSocketppClientWrapper(std::shared_ptr<WebSocketppClientType> webSocketClient,
+                                                   std::shared_ptr<RetryStrategy> connectRetryStrategy)
+    : m_webSocketClient(webSocketClient), m_connectRetryStrategy(connectRetryStrategy), m_connectionStateChanged(false) {
     // configure logging. comment these out to get websocket logs on stdout for debugging
     m_webSocketClient->clear_access_channels(websocketpp::log::alevel::all);
     m_webSocketClient->clear_error_channels(websocketpp::log::elevel::all);
@@ -108,9 +169,8 @@ GenericOutcome WebSocketppClientWrapper::Connect(const Uri &uri) {
     // This attempts to start up a new websocket connection / thread
     m_uri = uri;
     websocketpp::lib::error_code errorCode;
-    GeometricBackoffRetryStrategy retryStrategy;
     RetryingCallable callable = RetryingCallable::Builder()
-                                    .WithRetryStrategy(&retryStrategy)
+                                    .WithRetryStrategy(m_connectRetryStrategy.get())
                                     .WithCallable([this, &uri, &errorCode] {
                                         spdlog::info("Attempting to perform connection");
                                         WebSocketppClientType::connection_ptr newConnection = PerformConnect(uri, errorCode);
@@ -462,6 +522,40 @@ void WebSocketppClientWrapper::OnMessage(websocketpp::connection_hdl connection,
 
 websocketpp::lib::shared_ptr<asio::ssl::context> WebSocketppClientWrapper::OnTlsInit(websocketpp::connection_hdl hdl) {
     websocketpp::lib::shared_ptr<asio::ssl::context> contextPtr(new asio::ssl::context(asio::ssl::context::tlsv12));
+
+    asio::error_code errorCode;
+    contextPtr->set_default_verify_paths(errorCode);
+    if (errorCode) {
+        spdlog::warn("Unable to load OpenSSL's default CA locations: {}", errorCode.message());
+    }
+    LoadPlatformRootCertificates(contextPtr->native_handle());
+    // Failed loads (missing bundles, duplicate certificates) leave errors on OpenSSL's thread-local queue.
+    ERR_clear_error();
+
+    // websocketpp calls this handler before the connection's URI is set, so take the host from m_uri.
+    const std::string host = websocketpp::uri(m_uri.GetBaseUriString()).get_host();
+    asio::ssl::host_name_verification hostNameVerification(host);
+    contextPtr->set_verify_callback(
+        [hostNameVerification, host](bool preverified, asio::ssl::verify_context &verifyContext) {
+            if (hostNameVerification(preverified, verifyContext)) {
+                return true;
+            }
+            X509_STORE_CTX *storeContext = verifyContext.native_handle();
+            const int error = X509_STORE_CTX_get_error(storeContext);
+            spdlog::error("TLS certificate verification failed for {} at certificate depth {}: {}", host,
+                          X509_STORE_CTX_get_error_depth(storeContext),
+                          error == X509_V_OK ? "certificate does not match the host" : X509_verify_cert_error_string(error));
+            return false;
+        },
+        errorCode);
+    if (!errorCode) {
+        contextPtr->set_verify_mode(asio::ssl::verify_peer, errorCode);
+    }
+    if (errorCode) {
+        // Fail closed: websocketpp fails the connection when the handler returns no context.
+        spdlog::error("Unable to enable TLS certificate verification: {}", errorCode.message());
+        return nullptr;
+    }
     return contextPtr;
 }
 
