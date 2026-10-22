@@ -29,6 +29,8 @@ template <class Signature> using Function = std::function<Signature>;
 } // namespace GameLift
 } // namespace Aws
 #else
+#include <aws/gamelift/metrics/Defs.h>
+#include <aws/gamelift/metrics/TypeTraits.h>
 #include <aws/gamelift/metrics/UniquePtr.h>
 
 namespace Aws {

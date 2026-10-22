@@ -27,6 +27,7 @@ template <class T> using UniquePtr = std::unique_ptr<T>;
 } // namespace GameLift
 } // namespace Aws
 #else
+#include <aws/gamelift/metrics/Defs.h>
 
 namespace Aws {
 namespace GameLift {

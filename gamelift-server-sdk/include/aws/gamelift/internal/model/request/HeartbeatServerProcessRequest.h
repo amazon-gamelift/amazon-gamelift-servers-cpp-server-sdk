@@ -29,7 +29,7 @@ public:
     HeartbeatServerProcessRequest(HeartbeatServerProcessRequest &&) = default;
     HeartbeatServerProcessRequest &operator=(const HeartbeatServerProcessRequest &) = default;
     HeartbeatServerProcessRequest &operator=(HeartbeatServerProcessRequest &&) = default;
-    ~HeartbeatServerProcessRequest() = default;
+    ~HeartbeatServerProcessRequest() override = default;
 
     inline const bool GetHealthy() const { return m_healthy; }
 

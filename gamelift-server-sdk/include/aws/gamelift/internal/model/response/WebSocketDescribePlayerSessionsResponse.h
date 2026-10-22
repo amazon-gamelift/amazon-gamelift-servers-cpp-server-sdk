@@ -30,7 +30,7 @@ public:
     WebSocketDescribePlayerSessionsResponse(WebSocketDescribePlayerSessionsResponse &&) = default;
     WebSocketDescribePlayerSessionsResponse &operator=(const WebSocketDescribePlayerSessionsResponse &) = default;
     WebSocketDescribePlayerSessionsResponse &operator=(WebSocketDescribePlayerSessionsResponse &&) = default;
-    ~WebSocketDescribePlayerSessionsResponse() = default;
+    ~WebSocketDescribePlayerSessionsResponse() override = default;
 
     inline const std::string &GetNextToken() const { return m_nextToken; }
 

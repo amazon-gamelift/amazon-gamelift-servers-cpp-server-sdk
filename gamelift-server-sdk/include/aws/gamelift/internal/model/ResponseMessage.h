@@ -33,7 +33,7 @@ public:
 
     ResponseMessage &operator=(ResponseMessage &&) = default;
 
-    ~ResponseMessage() = default;
+    ~ResponseMessage() override = default;
 
     inline int GetStatusCode() const { return m_statusCode; }
 

@@ -31,7 +31,7 @@ public:
     ActivateGameSessionRequest(ActivateGameSessionRequest &&) = default;
     ActivateGameSessionRequest &operator=(const ActivateGameSessionRequest &) = default;
     ActivateGameSessionRequest &operator=(ActivateGameSessionRequest &&) = default;
-    ~ActivateGameSessionRequest() = default;
+    ~ActivateGameSessionRequest() override = default;
 
     inline const std::string &GetGameSessionId() const { return m_gameSessionId; }
 
