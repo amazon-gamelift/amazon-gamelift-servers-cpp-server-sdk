@@ -25,7 +25,7 @@
 
 using namespace Aws::GameLift;
 
-static const std::string sdkVersion = "5.6.0";
+static const std::string sdkVersion = "5.6.1";
 
 #ifdef GAMELIFT_USE_STD
 Aws::GameLift::AwsStringOutcome Server::GetSdkVersion() { return AwsStringOutcome(sdkVersion); }

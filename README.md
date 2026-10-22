@@ -258,3 +258,24 @@ LogWindows: Missing import: libcrypto-3-x64.dll
   This can be caused by a conflict between C++ standard library min/max macros and those defined by Windows headers.
 
 * **Mitigation**: Ensure you set the `NOMINMAX` definition in your application code *before* including any windows headers. Alternatively, you can set this at compile time with CMake via `-DNOMINMAX`.
+
+### TLS handshake failed when connecting to Amazon GameLift Servers
+
+```
+Connection state changed: TLS handshake failed
+```
+
+* **Cause**: The server SDK verifies the certificate of the Amazon GameLift Servers WebSocket endpoint against the
+  root certificate authorities (CAs) that the host trusts. On Linux, these come from OpenSSL's default locations and
+  the operating system's CA bundle (for example `/etc/ssl/certs/ca-certificates.crt` or
+  `/etc/pki/tls/certs/ca-bundle.crt`). On Windows, they come from the `ROOT` and `AuthRoot` certificate stores.
+  Verification fails if the host or container doesn't trust Amazon Root CA 1 or Starfield Services Root Certificate
+  Authority - G2 (for example, a minimal Linux image without a CA bundle, or a Windows container image), or if a
+  TLS-inspecting proxy re-signs the connection with its own CA. The SDK logs the reason, for example
+  `TLS certificate verification failed for <host> at certificate depth 2: unable to get local issuer certificate`.
+* **Mitigation**:
+  * Linux: install the operating system's CA certificates package, for example `ca-certificates`.
+  * Any platform: set the `SSL_CERT_FILE` environment variable to a PEM file, or `SSL_CERT_DIR` to a directory of PEM
+    files, containing the CAs to trust, such as Amazon Root CA 1 (from the
+    [Amazon Trust Services repository](https://www.amazontrust.com/repository/)) or your proxy's CA. These CAs are
+    trusted in addition to the system CAs.
